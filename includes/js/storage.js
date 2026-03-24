@@ -95,3 +95,26 @@ const DB = {
     return await this.callAPI('saveDrawer', 'POST', { date, data: payload });
   }
 };
+
+// --- GLOBAL LANGUAGE TOGGLE (Auto-Inject) ---
+document.addEventListener('DOMContentLoaded', () => {
+  // Create shell for the widget
+  const gte = document.createElement('div');
+  gte.id = 'google_translate_element';
+  document.body.appendChild(gte);
+
+  // Define initialization function
+  window.googleTranslateElementInit = function() {
+    new google.translate.TranslateElement({
+      pageLanguage: 'en',
+      includedLanguages: 'ta,si,en',
+      layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+      autoDisplay: false
+    }, 'google_translate_element');
+  };
+
+  // Add the Google script
+  const script = document.createElement('script');
+  script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+  document.body.appendChild(script);
+});
