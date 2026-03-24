@@ -61,16 +61,25 @@
 
   <!-- ===== BEST SELLING CHART ===== -->
   <section class="chart-section" aria-label="Best Selling Pets">
-    <h2 class="section-title">Best Selling Pets</h2>
-    <div class="chart-wrapper">
-      <div class="bar-chart" id="barChart" aria-label="Bar chart of best selling pets">
-        <!-- bars injected by JS using real sales data -->
+    <h2 class="section-title">Pet Sales Chart</h2>
+    <div class="chart-wrapper" style="padding: var(--sp-md) var(--sp-md) var(--sp-sm);">
+
+      <!-- Scrollable bar chart -->
+      <div id="barChartWrap" style="overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch; scrollbar-width:none;">
+        <div class="bar-chart" id="barChart" aria-label="Bar chart of all pets" style="height:180px; align-items:flex-end; padding-top:28px; min-width:100%; width:max-content; gap:0;">
+          <!-- bars injected by JS -->
+        </div>
+
+        <!-- Full name labels row -->
+        <div id="barLabels" style="display:flex; padding-top:8px; border-top:1.5px solid var(--clr-border); margin-top:4px;"></div>
       </div>
-      <div class="bar-divider"></div>
-      <p class="text-muted mt-sm" style="font-size:.75rem; font-weight:600; padding-top:6px;">Units sold according to recent data</p>
+
+      <p class="text-muted mt-sm" style="font-size:.72rem; font-weight:600; padding-top:8px;">
+        📦 Units sold per pet · all inventory included
+      </p>
     </div>
     <div id="noSales" class="empty-state" style="display:none; padding: 20px;">
-      <p style="font-size:.8rem;">No sales recorded yet to show chart.</p>
+      <p style="font-size:.8rem;">No pets in inventory yet.</p>
     </div>
   </section>
 
@@ -105,16 +114,35 @@ function loadStockAlerts() {
     }
 
     document.getElementById('noAlerts').style.display = 'none';
-    list.innerHTML = alertPets.map(p => `
-      <div class="alert-card" id="alert-${p.id}">
-        <div class="alert-info">
-          <span class="alert-dot"></span>
-          <span class="alert-pet-name">${p.name} (Qty: ${p.qty})</span>
-        </div>
-        <span class="alert-badge">Low Stock</span>
-        <button class="btn-stop-alert" onclick="stopAlert('${p.id}')">Stop Alert</button>
+    list.innerHTML = `
+      <div class="table-container" style="margin-top: 10px;">
+        <table class="pet-table" style="border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="padding-left: 15px;">Pet Name</th>
+              <th style="text-align: center;">Stock</th>
+              <th style="text-align: right; padding-right: 15px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${alertPets.map(p => `
+              <tr id="alert-${p.id}">
+                <td style="padding-left: 15px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="alert-dot" style="margin:0;"></span>
+                    <span style="font-weight:700;">${p.name}</span>
+                  </div>
+                </td>
+                <td style="text-align: center; color: var(--clr-danger); font-weight:800;">${p.qty}</td>
+                <td style="text-align: right; padding-right: 15px;">
+                  <button class="btn-stop-alert" style="margin:0; font-size:.7rem; padding:4px 10px;" onclick="stopAlert('${p.id}')">Stop Alert</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
       </div>
-    `).join('');
+    `;
 }
 
 function stopAlert(petId) {
@@ -143,28 +171,77 @@ function stopAlert(petId) {
 
 /* ---- Best Selling Chart Logic ---- */
 function loadBestSellingChart() {
-    const chart = document.getElementById('barChart');
-    const salesData = DB.getSalesByPet(); // Real sales count
-    
-    // Sample if nothing exists?
-    const data = salesData.length > 0 ? salesData.slice(0, 5) : [
-        {name: 'No Sales', qty: 0}
-    ];
+    const chart  = document.getElementById('barChart');
+    const labels = document.getElementById('barLabels');
+    const wrap   = document.getElementById('barChartWrap');
 
-    if (salesData.length === 0) {
+    // Build full pet list with their sales qty
+    const allPets   = DB.getPets();
+    const salesData = DB.getSalesByPet(); // [{name, qty}]
+    const salesMap  = {};
+    salesData.forEach(s => salesMap[s.name] = s.qty);
+
+    if (allPets.length === 0) {
         document.getElementById('noSales').style.display = '';
-        chart.style.display = 'none';
+        wrap.style.display = 'none';
         return;
     }
 
-    const max = Math.max(...data.map(d => d.qty)) || 1;
-    chart.innerHTML = data.map(d => {
-        const pct = Math.round((d.qty / max) * 100);
+    // Merge: every pet gets a bar (0 if never sold)
+    const data = allPets.map(p => ({
+        name:  p.name,
+        icon:  p.icon || '🐾',
+        qty:   salesMap[p.name] || 0,
+        color: p.chartColor || null
+    }));
+
+    // Sort: most sold first
+    data.sort((a, b) => b.qty - a.qty);
+
+    const max = Math.max(...data.map(d => d.qty), 1);
+    const COLORS = [
+        '#5c9e6e','#3b6de0','#f0a047','#9c5fe0',
+        '#e05c5c','#0ea5e9','#f43f5e','#10b981',
+        '#f59e0b','#6366f1'
+    ];
+
+    const colW = Math.max(72, Math.floor(300 / data.length)); // responsive col width
+
+    chart.innerHTML = data.map((d, i) => {
+        const pct   = max > 0 ? Math.max(Math.round((d.qty / max) * 100), d.qty > 0 ? 6 : 3) : 3;
+        const color = COLORS[i % COLORS.length];
         return `
-          <div class="bar-col">
-            <span class="bar-val">${d.qty}</span>
-            <div class="bar-fill" style="height:${pct}%"></div>
-            <span class="bar-label">${d.name}</span>
+          <div class="bar-col" style="min-width:${colW}px; flex:0 0 ${colW}px; padding:0 6px;">
+            <span class="bar-val" style="color:${color}; font-size:.72rem;">${d.qty > 0 ? d.qty : ''}</span>
+            <div class="bar-fill" style="
+              height:${pct}%;
+              background: linear-gradient(180deg, ${color}cc 0%, ${color} 100%);
+              border-radius:6px 6px 0 0;
+              width:100%;
+              max-width:none;
+              opacity: ${d.qty === 0 ? '0.25' : '1'};
+            "></div>
+          </div>
+        `;
+    }).join('');
+
+    // Full-name label row below chart
+    labels.innerHTML = data.map((d, i) => {
+        const color = COLORS[i % COLORS.length];
+        return `
+          <div style="
+            min-width:${colW}px; flex:0 0 ${colW}px;
+            padding:6px 4px 0;
+            text-align:center;
+          ">
+            <div style="font-size:1.1rem; line-height:1;">${d.icon}</div>
+            <div style="
+              font-size:.65rem; font-weight:700;
+              color:${color};
+              margin-top:3px;
+              word-break:break-word;
+              line-height:1.3;
+            ">${d.name}</div>
           </div>
         `;
     }).join('');

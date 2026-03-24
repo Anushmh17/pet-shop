@@ -20,10 +20,19 @@
 <!-- ===== MAIN CONTENT ===== -->
 <div class="app-wrapper" style="padding-top: var(--sp-md);">
 
-  <!-- Summary pills -->
-  <div class="summary-pills" id="summaryStats">
-    <!-- Loaded via JS -->
+  <!-- Top Filter Bar -->
+  <div class="flex-between" style="margin-bottom: var(--sp-md); gap: var(--sp-sm);">
+    <h2 class="section-title" style="margin-bottom:0;">Sales Range</h2>
+    <select class="form-control" id="salesRange"
+      style="max-width:140px; font-size:.82rem; padding:8px 10px; height:auto; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.05);"
+      onchange="applyFilter()">
+      <option value="thisWeek" selected>This Week</option>
+      <option value="thisMonth">This Month</option>
+      <option value="lastMonth">Last Month</option>
+    </select>
   </div>
+
+
 
   <!-- Stats cards -->
   <div class="drawer-header" style="margin-bottom: var(--sp-lg);">
@@ -37,39 +46,10 @@
     </div>
   </div>
 
-  <!-- Add Sale Section (Functional) -->
-  <div style="margin-bottom: var(--sp-xl);">
-    <h2 class="section-title">New Sale Record</h2>
-    <div class="add-pet-form" style="padding: var(--sp-md);">
-        <div class="form-group">
-            <label class="form-label" for="selectPet">Select Pet *</label>
-            <select id="selectPet" class="form-control" onchange="autoFillPrice()">
-                <option value="">— Select Pet in Stock —</option>
-                <!-- Loaded via JS -->
-            </select>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-sm);">
-            <div class="form-group">
-                <label class="form-label" for="saleQty">Quantity *</label>
-                <input type="number" id="saleQty" class="form-control" min="1" value="1" placeholder="1" />
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="salePrice">Unit Price (Rs.) *</label>
-                <input type="number" id="salePrice" class="form-control" min="0" placeholder="0.00" />
-            </div>
-        </div>
-        <button class="btn btn-primary btn-full" onclick="recordSale()">
-            🧾 Record Sale
-        </button>
-    </div>
-  </div>
-
+  <div style="height: 1px;"></div>
   <!-- Filter bar -->
-  <div class="flex gap-sm" style="margin-bottom: var(--sp-md); flex-wrap:wrap; align-items:center;">
+  <div class="flex gap-sm" style="margin-bottom: var(--sp-md); margin-top: var(--sp-lg); align-items:center;">
     <h2 class="section-title" style="margin-bottom:0; flex:1;">Recent Sales</h2>
-    <input type="month" class="form-control" id="salesFilter"
-        style="max-width:150px; font-size:.82rem; padding:8px 10px;"
-        value="2026-03" onchange="renderHistory()" />
   </div>
 
   <!-- Sales history list -->
@@ -82,70 +62,118 @@
     <p>No sales found for the selected period.</p>
   </div>
 
-
 </div><!-- /app-wrapper -->
+
+<!-- ===== SALE DETAIL MODAL ===== -->
+<div id="saleModal" style="
+  display:none; position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,.45); align-items:flex-end; justify-content:center;
+" onclick="closeSaleModal(event)">
+  <div id="saleModalBox" style="
+    background:#fff; border-radius:24px 24px 0 0;
+    width:100%; max-width:520px;
+    padding:24px 20px 36px;
+    animation: modalIn .28s ease both;
+    position:relative;
+  ">
+    <!-- close button -->
+    <button onclick="closeSaleModal()" style="
+      position:absolute; top:16px; right:16px;
+      background:var(--clr-bg); border:none; border-radius:50%;
+      width:34px; height:34px; font-size:1.1rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+    ">✕</button>
+
+    <!-- Pet image carousel -->
+    <div id="modalImages" style="
+      display:flex; gap:8px; overflow-x:auto;
+      padding-bottom:8px; margin-bottom:16px;
+      scrollbar-width:none;
+    "></div>
+
+    <!-- title row -->
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+      <div id="modalIcon" style="
+        font-size:2rem; width:54px; height:54px;
+        background:var(--clr-primary-lt); border-radius:14px;
+        display:flex; align-items:center; justify-content:center;
+        flex-shrink:0;
+      "></div>
+      <div>
+        <div id="modalPetName" style="font-size:1.05rem; font-weight:800; color:var(--clr-text);"></div>
+        <div id="modalDate" style="font-size:.78rem; color:var(--clr-muted); font-weight:600; margin-top:2px;"></div>
+      </div>
+    </div>
+
+    <!-- detail grid -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
+      <div class="stat-card" style="padding:12px;">
+        <div class="stat-label">Qty Sold</div>
+        <div class="stat-value" id="modalQty" style="font-size:1.2rem;"></div>
+      </div>
+      <div class="stat-card" style="padding:12px;">
+        <div class="stat-label">Unit Price</div>
+        <div class="stat-value" id="modalUnitPrice" style="font-size:1.2rem;"></div>
+      </div>
+      <div class="stat-card accent" style="padding:12px; grid-column:1/-1; text-align:center;">
+        <div class="stat-label">Total Amount</div>
+        <div class="stat-value" id="modalTotal" style="font-size:1.5rem;"></div>
+      </div>
+    </div>
+
+    <!-- extra info -->
+    <div id="modalExtra" style="font-size:.82rem; color:var(--clr-muted); font-weight:600;"></div>
+  </div>
+</div>
 
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    loadPetList();
-    renderHistory();
-    updateStats();
+    applyFilter();
 });
 
-function loadPetList() {
-    const sel = document.getElementById('selectPet');
-    const pets = DB.getPets().filter(p => p.qty > 0);
-    sel.innerHTML += pets.map(p => `<option value="${p.id}">${p.name} (Qty: ${p.qty})</option>`).join('');
-}
-
-function autoFillPrice() {
-    const id = parseInt(document.getElementById('selectPet').value);
-    const pets = DB.getPets();
-    const pet = pets.find(p => p.id === id);
-    if (pet) {
-        document.getElementById('salePrice').value = pet.price;
-    }
-}
-
-function recordSale() {
-    const pId   = parseInt(document.getElementById('selectPet').value);
-    const qty   = parseInt(document.getElementById('saleQty').value) || 0;
-    const price = parseFloat(document.getElementById('salePrice').value) || 0;
-
-    if(!pId) { showToast('Select a pet'); return; }
-    if(qty <= 0) { showToast('Enter valid quantity'); return; }
-
-    const pet = DB.getPets().find(p => p.id === pId);
-    if(pet.qty < qty) { showToast('Not enough stock! Available: ' + pet.qty); return; }
-
-    const sale = {
-        petId: pId,
-        petName: pet.name,
-        petIcon: pet.icon || '🐾',
-        qty: qty,
-        price: price,
-        total: qty * price
+function getFilteredSales() {
+    const range = document.getElementById('salesRange').value;
+    const allSales = DB.getSales();
+    const now = new Date();
+    
+    // Helper to get local YYYY-MM-DD
+    const toYMD = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
     };
 
-    DB.addSale(sale);
-    showToast('Sale recorded successfully ✓');
-    
-    // Refresh
-    renderHistory();
-    updateStats();
-    
-    // Clear
-    document.getElementById('selectPet').value = '';
-    document.getElementById('saleQty').value = '1';
-    document.getElementById('salePrice').value = '';
+    const currentYMD = toYMD(now);
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+    const startOfWeekYMD = toYMD(startOfWeek);
+
+    return allSales.filter(s => {
+        if (range === 'thisMonth') {
+            const [y, m] = s.date.split('-');
+            return parseInt(y) === now.getFullYear() && parseInt(m) === (now.getMonth() + 1);
+        } else if (range === 'lastMonth') {
+            const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const [y, m] = s.date.split('-');
+            return parseInt(y) === last.getFullYear() && parseInt(m) === (last.getMonth() + 1);
+        } else if (range === 'thisWeek') {
+            return s.date >= startOfWeekYMD && s.date <= currentYMD;
+        }
+        return true;
+    });
 }
 
-function renderHistory() {
-    const filter = document.getElementById('salesFilter').value; // YYYY-MM
+function applyFilter() {
+    const sales = getFilteredSales();
+    renderHistory(sales);
+    updateStats(sales);
+}
+
+function renderHistory(sales) {
     const list = document.getElementById('salesList');
-    const sales = DB.getSales().filter(s => s.date.startsWith(filter));
 
     if (sales.length === 0) {
         list.innerHTML = '';
@@ -154,32 +182,78 @@ function renderHistory() {
     }
 
     document.getElementById('noSales').style.display = 'none';
-    list.innerHTML = sales.map(s => `
-      <div class="sale-item">
+    list.innerHTML = sales.map((s, idx) => `
+      <div class="sale-item" onclick="openSaleModal(${idx})" style="cursor:pointer; transition:transform .15s;" 
+           onmousedown="this.style.transform='scale(.97)'" onmouseup="this.style.transform=''">
         <div class="item-icon">${s.petIcon}</div>
         <div class="item-info">
           <div class="item-name">${s.petName}</div>
           <div class="item-meta">${s.qty} unit${s.qty > 1 ? 's' : ''} &middot; ${formatDate(s.date)}</div>
         </div>
-        <div class="item-amt">Rs. ${s.total.toLocaleString('en-IN')}</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="item-amt">Rs. ${s.total.toLocaleString('en-IN')}</div>
+          <span style="color:var(--clr-muted); font-size:.8rem;">›</span>
+        </div>
       </div>
     `).join('');
+    // store filtered sales for modal lookup
+    window._currentSales = sales;
 }
 
-function updateStats() {
-    const sales = DB.getSales();
-    const totalQty = sales.reduce((sum, s) => sum + s.qty, 0);
-    const totalRev = sales.reduce((sum, s) => sum + s.total, 0);
+function openSaleModal(idx) {
+    const s = window._currentSales[idx];
+    if (!s) return;
+
+    const pet = DB.getPets().find(p => p.id === s.petId);
+
+    // Images
+    const imgBox = document.getElementById('modalImages');
+    const images = pet && pet.images && pet.images.length > 0 ? pet.images : [];
+    if (images.length > 0) {
+        imgBox.style.display = 'flex';
+        imgBox.innerHTML = images.map(src => `
+          <img src="${src}" style="
+            width:90px; height:90px; object-fit:cover;
+            border-radius:14px; flex-shrink:0;
+            border:2px solid var(--clr-border);
+          " />
+        `).join('');
+    } else {
+        imgBox.style.display = 'none';
+        imgBox.innerHTML = '';
+    }
+
+    document.getElementById('modalIcon').textContent        = s.petIcon || '🐾';
+    document.getElementById('modalPetName').textContent     = s.petName;
+    document.getElementById('modalDate').textContent        = '📅 ' + new Date(s.date).toLocaleDateString('en-US', {weekday:'short', day:'numeric', month:'long', year:'numeric'});
+    document.getElementById('modalQty').textContent         = s.qty + (s.qty > 1 ? ' units' : ' unit');
+    document.getElementById('modalUnitPrice').textContent   = 'Rs. ' + (s.price || (s.total / s.qty)).toLocaleString('en-IN');
+    document.getElementById('modalTotal').textContent       = 'Rs. ' + s.total.toLocaleString('en-IN');
+    
+    const extra = [];
+    if (pet) {
+        if (pet.category) extra.push('🏷 Category: ' + pet.category.charAt(0).toUpperCase() + pet.category.slice(1));
+        if (pet.source)   extra.push('📦 Source: ' + pet.source);
+    }
+    document.getElementById('modalExtra').innerHTML = extra.join('&nbsp;&nbsp;|&nbsp;&nbsp;');
+
+    const modal = document.getElementById('saleModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.style.opacity = '1', 10);
+}
+
+function closeSaleModal(e) {
+    if (e && e.target !== document.getElementById('saleModal')) return;
+    document.getElementById('saleModal').style.display = 'none';
+}
+
+function updateStats(filteredSales) {
+    const totalQty = filteredSales.reduce((sum, s) => sum + s.qty, 0);
+    const totalRev = filteredSales.reduce((sum, s) => sum + s.total, 0);
+    const rangeText = document.getElementById('salesRange').options[document.getElementById('salesRange').selectedIndex].text;
     
     document.getElementById('totalSoldMain').textContent = totalQty;
     document.getElementById('revenueMain').textContent = 'Rs. ' + totalRev.toLocaleString('en-IN');
-    
-    document.getElementById('summaryStats').innerHTML = `
-        <span class="pill">Current Month</span>
-        <span class="pill accent">Total: Rs. ${totalRev.toLocaleString('en-IN')}</span>
-        <span class="pill info">${sales.length} transactions</span>
-    `;
-
 }
 
 function formatDate(ds) {

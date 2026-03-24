@@ -39,10 +39,36 @@
     </div>
   </div>
 
-  <!-- Section Title -->
+  <!-- Add Sale Section (Consolidated here) -->
+  <div style="margin-bottom: var(--sp-xl);">
+    <h2 class="section-title">New Sale Record</h2>
+    <div class="add-pet-form" style="padding: var(--sp-md);">
+        <div class="form-group">
+            <label class="form-label" for="selectPet">Select Pet *</label>
+            <select id="selectPet" class="form-control" onchange="autoFillPrice()">
+                <option value="">— Select Pet —</option>
+                <!-- Loaded via JS -->
+            </select>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-sm);">
+            <div class="form-group">
+                <label class="form-label" for="saleQty">Qty *</label>
+                <input type="number" id="saleQty" class="form-control" min="1" value="1" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="salePrice">Price (Rs.) *</label>
+                <input type="number" id="salePrice" class="form-control" min="0" placeholder="0.00" />
+            </div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="recordSale()">
+            🧾 Record Sale
+        </button>
+    </div>
+  </div>
+
+  <!-- Today's Table Header -->
   <div class="flex-between" style="margin-bottom: var(--sp-sm);">
     <h2 class="section-title" style="margin-bottom:0;">Today's Entries</h2>
-    <a href="sales.php" class="btn btn-primary btn-sm">＋ Record Sale</a>
   </div>
 
   <!-- Today's sales list -->
@@ -53,7 +79,6 @@
   <div id="emptyToday" class="empty-state" style="display:none;">
     <div class="empty-icon">🛒</div>
     <p>No sales recorded yet today.</p>
-    <a href="sales.php" class="btn btn-primary mt-md btn-sm">Add First Sale</a>
   </div>
 
 </div><!-- /app-wrapper -->
@@ -63,6 +88,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     updateTodayDate();
+    loadPetList();
     renderTodaySales();
 });
 
@@ -70,6 +96,54 @@ function updateTodayDate() {
   const d = new Date();
   document.getElementById('heroDate').textContent =
     d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function loadPetList() {
+    const sel = document.getElementById('selectPet');
+    const pets = DB.getPets().filter(p => p.qty > 0);
+    sel.innerHTML += pets.map(p => `<option value="${p.id}">${p.name} (In Stock: ${p.qty})</option>`).join('');
+}
+
+function autoFillPrice() {
+    const id = parseInt(document.getElementById('selectPet').value);
+    const pets = DB.getPets();
+    const pet = pets.find(p => p.id === id);
+    if (pet) {
+        document.getElementById('salePrice').value = pet.price;
+    }
+}
+
+function recordSale() {
+    const pId   = parseInt(document.getElementById('selectPet').value);
+    const qty   = parseInt(document.getElementById('saleQty').value) || 0;
+    const price = parseFloat(document.getElementById('salePrice').value) || 0;
+
+    if(!pId) { showToast('Select a pet'); return; }
+    if(qty <= 0) { showToast('Enter valid quantity'); return; }
+
+    const pet = DB.getPets().find(p => p.id === pId);
+    if(pet.qty < qty) { showToast('Not enough stock! Available: ' + pet.qty); return; }
+
+    const sale = {
+        petId: pId,
+        petName: pet.name,
+        petIcon: pet.icon || '🐾',
+        qty: qty,
+        price: price,
+        total: qty * price
+    };
+
+    DB.addSale(sale);
+    showToast('Sale recorded successfully ✓');
+    
+    // Refresh
+    renderTodaySales();
+    
+    // Clear & Re-load List (to update quantities)
+    document.getElementById('selectPet').innerHTML = '<option value="">— Select Pet —</option>';
+    loadPetList();
+    document.getElementById('saleQty').value = '1';
+    document.getElementById('salePrice').value = '';
 }
 
 function renderTodaySales() {
