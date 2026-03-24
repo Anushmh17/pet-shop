@@ -30,6 +30,12 @@ try {
     $pdo->exec($sql1);
     $pdo->exec($sql2);
     $pdo->exec($sql3);
+    
+    // Force specific password for 'admin' to avoid any previous mismatch
+    $hash = password_hash('admin123', PASSWORD_DEFAULT);
+    $upd = $pdo->prepare("UPDATE admins SET password = ? WHERE username = 'admin'");
+    $upd->execute([$hash]);
+
     echo '<h2 style="font-family:sans-serif; color:green;">✅ Migration complete!</h2>';
     echo '<p style="font-family:sans-serif;">Tables <code>customer_suppliers</code> and <code>admins</code> are ready. Initial admin: <code>admin</code> / <code>admin123</code></p>';
 } catch (PDOException $e) {

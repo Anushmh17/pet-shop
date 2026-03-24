@@ -37,7 +37,7 @@ if (!isset($_SESSION['admin_auth'])) {
   <div class="greeting" style="position:relative;">
     <a href="profile.php" class="profile-link" aria-label="Admin Profile">👤</a>
     <div class="greeting-label">Welcome back</div>
-    <div class="greeting-name" id="greetText">Good Day, Owner 👋</div>
+    <div class="greeting-name" id="greetText">Good Day,<br>Owner 👋</div>
     <div class="greeting-sub" id="todayDate"></div>
   </div>
 
@@ -143,7 +143,7 @@ function updateTodayDate() {
   const now = new Date();
   const hr  = now.getHours();
   const greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
-  document.getElementById('greetText').textContent = greet + ', Owner 👋';
+  document.getElementById('greetText').innerHTML = `${greet},<br>Owner 👋`;
   document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 }
 

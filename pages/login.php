@@ -125,11 +125,11 @@ if (isset($_SESSION['admin_auth'])) {
     <form id="loginForm" onsubmit="handleLogin(event)">
         <div class="input-group">
             <span class="input-label">Username</span>
-            <input type="text" id="username" class="login-input" placeholder="e.g. admin" required autocomplete="username">
+            <input type="text" id="username" class="login-input" placeholder="Username" required autocomplete="username">
         </div>
         <div class="input-group" style="margin-bottom: 25px;">
             <span class="input-label">Password</span>
-            <input type="password" id="password" class="login-input" placeholder="••••••••" required autocomplete="current-password">
+            <input type="password" id="password" class="login-input" placeholder="Password" required autocomplete="current-password">
         </div>
         <button type="submit" id="loginBtn" class="login-btn">Sign In</button>
     </form>
