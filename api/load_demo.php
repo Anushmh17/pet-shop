@@ -51,12 +51,12 @@ try {
 
     // 4. SEED FINANCIAL DATA (Drawer)
     $data = [
-        'openingBalance' => 25000.00, 'cashIn' => 41300.00, 'cashOut' => 500.00, 'closingBalance' => 65800.00,
+        'openingBalance' => 25000.00, 'cashIn' => 4000.00, 'cashOut' => 500.00, 'closingBalance' => 28500.00,
         'entries' => [
-            ['type' => 'Cash In', 'desc' => 'Sale: Labradors (2)', 'amount' => 30000],
-            ['type' => 'Cash In', 'desc' => 'Sale: Siamese (1)', 'amount' => 9500],
-            ['type' => 'Cash In', 'desc' => 'Sale: Fish (4)', 'amount' => 1800],
-            ['type' => 'Cash Out', 'desc' => 'Fish Food Restock', 'amount' => 500]
+            ['type' => 'Cash In', 'desc' => 'Manual Cash Deposit', 'amount' => 3000],
+            ['type' => 'Cash In', 'desc' => 'Additional Fund', 'amount' => 1000],
+            ['type' => 'Cash Out', 'desc' => 'Shop Cleaning Fees', 'amount' => 300],
+            ['type' => 'Cash Out', 'desc' => 'Electric Bill', 'amount' => 200]
         ]
     ];
     $json = json_encode($data);

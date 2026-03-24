@@ -7,6 +7,170 @@
   <title>Manage Pets — Pet Shop</title>
   <link rel="stylesheet" href="../includes/css/style.css" />
   <script src="../includes/js/storage.js"></script>
+  <style>
+    /* ---- Clickable Card ---- */
+    .pet-stock-card {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      background: var(--clr-surface);
+      border: 1.5px solid var(--clr-border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pet-stock-card:active { transform: scale(.97); box-shadow: var(--shadow-md); }
+
+    /* ---- Detail Modal ---- */
+    #petModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background: rgba(0,0,0,.45);
+      align-items: flex-end;
+      justify-content: center;
+    }
+    #petModal.open { display: flex; }
+
+    #petModalBox {
+      background: var(--clr-surface);
+      border-radius: 24px 24px 0 0;
+      width: 100%;
+      max-width: 520px;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 24px 20px 40px;
+      animation: modalIn .28s cubic-bezier(.4,0,.2,1) both;
+      position: relative;
+    }
+    @keyframes modalIn {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+
+    /* drag handle */
+    .modal-handle {
+      width: 40px; height: 4px; background: var(--clr-border);
+      border-radius: 4px; margin: 0 auto 20px;
+    }
+
+    /* Image strip */
+    .img-strip {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+      scrollbar-width: none;
+    }
+    .img-strip::-webkit-scrollbar { display: none; }
+    .img-strip img {
+      width: 110px;
+      height: 110px;
+      object-fit: cover;
+      border-radius: 16px;
+      border: 2px solid var(--clr-border);
+      flex-shrink: 0;
+    }
+    .img-placeholder {
+      width: 110px;
+      height: 110px;
+      border-radius: 16px;
+      border: 2px dashed var(--clr-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.8rem;
+      background: var(--clr-bg);
+      flex-shrink: 0;
+    }
+
+    /* Modal header row */
+    .modal-pet-name {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--clr-text);
+      line-height: 1.2;
+    }
+    .modal-pet-sub {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--clr-muted);
+      margin-top: 3px;
+    }
+
+    /* Detail rows */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 18px 0 14px;
+    }
+    .detail-cell {
+      background: var(--clr-bg);
+      border-radius: var(--r-md);
+      padding: 12px 14px;
+    }
+    .detail-cell .dc-label {
+      font-size: .68rem;
+      font-weight: 800;
+      color: var(--clr-muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 4px;
+    }
+    .detail-cell .dc-value {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--clr-text);
+    }
+    .detail-cell.wide { grid-column: 1 / -1; }
+    .detail-cell.accent .dc-value { color: var(--clr-primary); }
+    .detail-cell.danger .dc-value { color: var(--clr-danger); }
+
+    /* Stock status badge */
+    .status-badge {
+      display: inline-block;
+      font-size: .68rem;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 50px;
+    }
+
+    /* Notes */
+    .notes-box {
+      background: var(--clr-bg);
+      border-radius: var(--r-md);
+      padding: 12px 14px;
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--clr-muted);
+      line-height: 1.5;
+    }
+
+    /* Close button */
+    #modalCloseBtn {
+      position: absolute;
+      top: 20px;
+      right: 18px;
+      background: var(--clr-bg);
+      border: none;
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--clr-muted);
+      font-weight: 800;
+    }
+  </style>
 </head>
 <body id="page-body">
 
@@ -33,7 +197,7 @@
   <div class="flex-between" style="margin-bottom: 15px;">
     <h2 class="section-title" style="margin:0;">Current Stock</h2>
     <div style="display:flex; gap:10px;">
-        <span style="font-size:.65rem; font-weight:800; color:var(--clr-muted); border:1px solid var(--clr-border); padding:4px 8px; border-radius:6px; background:white;" id="alertStatusBadge">Checking...</span>
+      <span style="font-size:.65rem; font-weight:800; color:var(--clr-muted); border:1px solid var(--clr-border); padding:4px 8px; border-radius:6px; background:white;" id="alertStatusBadge">Checking...</span>
     </div>
   </div>
 
@@ -52,13 +216,70 @@
 </div><!-- /app-wrapper -->
 </div><!-- /content-wrapper -->
 
+<!-- ===== PET DETAIL MODAL ===== -->
+<div id="petModal" role="dialog" aria-modal="true" aria-label="Pet Details" onclick="handleModalBgClick(event)">
+  <div id="petModalBox">
+    <div class="modal-handle"></div>
+    <button id="modalCloseBtn" onclick="closeModal()" aria-label="Close">✕</button>
+
+    <!-- Image Strip -->
+    <div class="img-strip" id="modalImgStrip">
+      <!-- Images injected by JS -->
+    </div>
+
+    <!-- Pet name + meta -->
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px;">
+      <div id="modalIcon" style="font-size:2.2rem; width:56px; height:56px; background:var(--clr-primary-lt); border-radius:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
+      <div>
+        <div class="modal-pet-name" id="modalName"></div>
+        <div class="modal-pet-sub" id="modalSub"></div>
+        <span class="status-badge" id="modalStatusBadge" style="margin-top:6px; display:inline-block;"></span>
+      </div>
+    </div>
+
+    <!-- Detail grid -->
+    <div class="detail-grid">
+      <div class="detail-cell accent">
+        <div class="dc-label">💰 Selling Price</div>
+        <div class="dc-value" id="modalPrice"></div>
+      </div>
+      <div class="detail-cell">
+        <div class="dc-label">📦 Stock (Qty)</div>
+        <div class="dc-value" id="modalQty"></div>
+      </div>
+      <div class="detail-cell">
+        <div class="dc-label">🏷 Cost Price</div>
+        <div class="dc-value" id="modalCost"></div>
+      </div>
+      <div class="detail-cell">
+        <div class="dc-label">🔢 Type</div>
+        <div class="dc-value" id="modalType"></div>
+      </div>
+      <div class="detail-cell">
+        <div class="dc-label">📋 Source</div>
+        <div class="dc-value" id="modalSource"></div>
+      </div>
+      <div class="detail-cell">
+        <div class="dc-label">⚠️ Alert Level</div>
+        <div class="dc-value" id="modalAlert"></div>
+      </div>
+      <div class="detail-cell wide" id="modalNotesCell" style="display:none;">
+        <div class="dc-label" style="margin-bottom:6px;">📝 Notes</div>
+        <div class="notes-box" id="modalNotes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
+/* ================ STATE ================ */
+let allPets = [];
 let startY = 0, distY = 0, pulling = false;
 const cnt = document.getElementById('content-wrapper');
 
-// --- PULL TO REFRESH LOGIC ---
+/* ================ PTR ================ */
 window.addEventListener('touchstart', e => { if(window.scrollY === 0){ startY = e.touches[0].pageY; pulling = true; } }, {passive:true});
 window.addEventListener('touchmove', e => {
     if(!pulling) return;
@@ -74,7 +295,7 @@ window.addEventListener('touchend', async () => {
         document.body.classList.remove('ptr-pulling');
         document.body.classList.add('ptr-loading');
         cnt.style.transform = 'translateY(40px)';
-        await renderPets(); 
+        await renderPets();
         setTimeout(() => {
             document.body.classList.remove('ptr-loading');
             cnt.style.transform = '';
@@ -86,42 +307,44 @@ window.addEventListener('touchend', async () => {
     pulling = false; distY = 0;
 }, {passive:true});
 
-// --- CORE APP LOGIC ---
+/* ================ RENDER LIST ================ */
 async function renderPets() {
     const list = document.getElementById('petsListGrid');
-    const pets = await DB.getPets();
-    
-    document.getElementById('totalStockCount').textContent = pets.reduce((s, p) => s + parseInt(p.qty), 0);
+    allPets = await DB.getPets();
 
-    if (pets.length === 0) {
+    document.getElementById('totalStockCount').textContent = allPets.reduce((s, p) => s + parseInt(p.qty), 0);
+
+    if (allPets.length === 0) {
         list.innerHTML = '';
         document.getElementById('emptyPets').style.display = 'block';
         return;
     }
 
     document.getElementById('emptyPets').style.display = 'none';
-    
+
     let lowStockCount = 0;
-    list.innerHTML = pets.map(p => {
+    list.innerHTML = allPets.map((p, idx) => {
         const isLow = parseInt(p.qty) <= parseInt(p.alert_level);
         if(isLow && !p.stop_alert) lowStockCount++;
         const statusColor = isLow ? 'var(--clr-danger)' : 'var(--clr-primary)';
+        const statusBg    = isLow ? 'var(--clr-danger-lt)' : 'var(--clr-primary-lt)';
         const statusLabel = isLow ? 'LOW STOCK' : 'HEALTHY';
-        
+
         return `
-          <div class="stat-card" style="display:flex; align-items:center; gap:15px; padding:15px;">
-            <div style="font-size:2.2rem; background:var(--clr-primary-lt); width:60px; height:60px; display:flex; align-items:center; justify-content:center; border-radius:15px;">${p.icon || '🐾'}</div>
-            <div style="flex:1;">
-               <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                   <div style="font-weight:800; font-size:1rem; color:var(--clr-text); line-height:1.2;">${p.name}</div>
-                   <div style="font-size:.65rem; font-weight:800; color:${statusColor}; background:${isLow ? 'var(--clr-danger-lt)' : 'var(--clr-primary-lt)'}; padding:2px 8px; border-radius:50px;">${statusLabel}</div>
-               </div>
-               <div style="font-size:.7rem; font-weight:700; color:var(--clr-muted); margin-top:3px;">${p.category.toUpperCase()} • ${p.pet_variety || 'Regular'}</div>
-               <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
-                   <div style="font-size:.85rem; font-weight:800; color:var(--clr-text);">Qty: ${p.qty}</div>
-                   <div style="font-size:.85rem; font-weight:800; color:var(--clr-primary);">Rs. ${parseFloat(p.price).toLocaleString()}</div>
-               </div>
+          <div class="pet-stock-card" onclick="openModal(${idx})" id="pet-card-${p.id}">
+            <div style="font-size:2.2rem; background:var(--clr-primary-lt); width:60px; height:60px; display:flex; align-items:center; justify-content:center; border-radius:15px; flex-shrink:0;">${p.icon || '🐾'}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div style="font-weight:800; font-size:1rem; color:var(--clr-text); line-height:1.2;">${p.name}</div>
+                <div style="font-size:.65rem; font-weight:800; color:${statusColor}; background:${statusBg}; padding:2px 8px; border-radius:50px; white-space:nowrap; margin-left:8px;">${statusLabel}</div>
+              </div>
+              <div style="font-size:.7rem; font-weight:700; color:var(--clr-muted); margin-top:3px;">${p.category.toUpperCase()} • ${p.pet_variety || 'Regular'}</div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+                <div style="font-size:.85rem; font-weight:800; color:var(--clr-text);">Qty: ${p.qty}</div>
+                <div style="font-size:.85rem; font-weight:800; color:var(--clr-primary);">Rs. ${parseFloat(p.price).toLocaleString()}</div>
+              </div>
             </div>
+            <div style="color:var(--clr-border); font-size:1.1rem; flex-shrink:0;">›</div>
           </div>
         `;
     }).join('');
@@ -141,6 +364,81 @@ async function renderPets() {
     document.getElementById('lastSync').textContent = 'Last Synced: ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 }
 
+/* ================ MODAL ================ */
+async function openModal(idx) {
+    const p = allPets[idx];
+    if (!p) return;
+
+    const isLow = parseInt(p.qty) <= parseInt(p.alert_level);
+
+    // --- Text fields ---
+    document.getElementById('modalIcon').textContent    = p.icon || '🐾';
+    document.getElementById('modalName').textContent    = p.name;
+    document.getElementById('modalSub').textContent     = p.category.charAt(0).toUpperCase() + p.category.slice(1) + (p.pet_variety ? ' • ' + p.pet_variety : '');
+    document.getElementById('modalPrice').textContent   = 'Rs. ' + parseFloat(p.price).toLocaleString('en-IN');
+    document.getElementById('modalQty').textContent     = p.qty + ' units';
+    document.getElementById('modalCost').textContent    = p.cost > 0 ? 'Rs. ' + parseFloat(p.cost).toLocaleString('en-IN') : '—';
+    document.getElementById('modalType').textContent    = p.type || '—';
+    document.getElementById('modalSource').textContent  = p.source || '—';
+    document.getElementById('modalAlert').textContent   = p.alert_level + ' units';
+
+    // Status badge
+    const badge = document.getElementById('modalStatusBadge');
+    if (isLow) {
+        badge.textContent = '⚠️ LOW STOCK';
+        badge.style.cssText = 'background:var(--clr-danger-lt); color:var(--clr-danger); font-size:.68rem; font-weight:800; padding:4px 12px; border-radius:50px;';
+    } else {
+        badge.textContent = '✅ Healthy Stock';
+        badge.style.cssText = 'background:var(--clr-primary-lt); color:var(--clr-primary); font-size:.68rem; font-weight:800; padding:4px 12px; border-radius:50px;';
+    }
+
+    // Notes
+    const notesCell = document.getElementById('modalNotesCell');
+    if (p.notes && p.notes.trim()) {
+        document.getElementById('modalNotes').textContent = p.notes.trim();
+        notesCell.style.display = 'block';
+    } else {
+        notesCell.style.display = 'none';
+    }
+
+    // --- Images ---
+    const strip = document.getElementById('modalImgStrip');
+    strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">⏳</div>`;
+    document.getElementById('petModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    try {
+        const images = await DB.getPetImages(p.id);
+        if (images && images.length > 0) {
+            strip.innerHTML = images.map(src => `
+                <img src="${src}" alt="${p.name}" loading="lazy" />
+            `).join('');
+        } else {
+            // Show icon placeholder if no photos uploaded
+            strip.innerHTML = `
+                <div class="img-placeholder">
+                    ${p.icon || '🐾'}
+                </div>
+            `;
+        }
+    } catch(e) {
+        strip.innerHTML = `<div class="img-placeholder">${p.icon || '🐾'}</div>`;
+    }
+}
+
+function closeModal() {
+    document.getElementById('petModal').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function handleModalBgClick(e) {
+    if (e.target === document.getElementById('petModal')) closeModal();
+}
+
+// Close modal on back gesture (Android)
+window.addEventListener('popstate', closeModal);
+
+/* ================ TOAST ================ */
 function showToast(msg) {
     const t = document.getElementById('toast');
     t.textContent = msg; t.classList.add('show');

@@ -8,30 +8,107 @@
   <link rel="stylesheet" href="../includes/css/style.css" />
   <script src="../includes/js/storage.js"></script>
   <style>
-    /* Stable PTR */
-    #ptr-indicator {
-      position: fixed; top: 60px; left: 0; width: 100%; height: 60px;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.25s cubic-bezier(0,0,0.2,1); z-index: 100;
-      opacity: 0; transform: scale(0.5); pointer-events: none;
-    }
-    .ptr-pulling #ptr-indicator { opacity: 0.7; transform: scale(1); }
-    .ptr-loading #ptr-indicator { opacity: 1; transform: scale(1.1); }
-    .ptr-loading .spinner { animation: spin 0.8s linear infinite; }
-    
-    .spinner {
-      width: 32px; height: 32px; background: white; border-radius: 50%;
-      border: 3.5px solid rgba(var(--clr-primary-rgb), 0.1);
-      border-top-color: var(--clr-primary);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
     body { overscroll-behavior-y: contain; background: var(--clr-bg); }
     #content-wrapper { transition: transform 0.25s ease-out; position: relative; }
-
-    /* Fix Button Layering: No "Blockers" */
     .top-nav { position: sticky; top: 0; z-index: 1000; background: #fff; }
+
+    /* ---- Input Group ---- */
+    .field-block {
+      background: var(--clr-surface);
+      border: 1.5px solid var(--clr-border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      padding: var(--sp-md);
+      margin-bottom: var(--sp-sm);
+    }
+    .field-block .field-label {
+      font-size: .72rem;
+      font-weight: 800;
+      color: var(--clr-muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .field-block input {
+      width: 100%;
+      border: none;
+      outline: none;
+      font-size: 1.5rem;
+      font-weight: 800;
+      font-family: 'Nunito', sans-serif;
+      color: var(--clr-text);
+      background: transparent;
+      padding: 0;
+    }
+    .field-block input[type="date"] {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--clr-text);
+    }
+    .field-block input::placeholder { color: var(--clr-border); }
+    .field-block input[readonly] { color: var(--clr-primary); cursor: default; }
+
+    /* ---- Summary Card ---- */
+    .summary-card {
+      background: linear-gradient(135deg, var(--clr-primary) 0%, #4a8a5c 100%);
+      border-radius: var(--r-xl);
+      padding: var(--sp-lg) var(--sp-md);
+      color: #fff;
+      margin-bottom: var(--sp-md);
+      box-shadow: 0 6px 24px rgba(92,158,110,.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .summary-card::before {
+      content: '💰';
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 4rem;
+      opacity: .15;
+    }
+    .summary-card .sc-label { font-size: .72rem; font-weight: 700; opacity: .8; text-transform: uppercase; letter-spacing: .8px; }
+    .summary-card .sc-value { font-size: 2.4rem; font-weight: 800; line-height: 1.1; margin: 4px 0 2px; }
+    .summary-card .sc-sub { font-size: .78rem; opacity: .7; font-weight: 600; }
+
+    /* ---- Row Breakdown ---- */
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px var(--sp-md);
+      background: var(--clr-surface);
+      border: 1.5px solid var(--clr-border);
+      border-radius: var(--r-md);
+      margin-bottom: var(--sp-xs);
+      box-shadow: var(--shadow-sm);
+    }
+    .breakdown-row .br-label { font-size: .8rem; font-weight: 700; color: var(--clr-muted); }
+    .breakdown-row .br-value { font-size: .95rem; font-weight: 800; }
+    .br-value.green { color: #2d8a4e; }
+    .br-value.red   { color: #e05c5c; }
+    .br-value.blue  { color: var(--clr-primary); }
+
+    /* ---- Net Change Pill ---- */
+    .net-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: .75rem;
+      font-weight: 800;
+      padding: 5px 14px;
+      border-radius: 50px;
+      margin-bottom: var(--sp-md);
+    }
+    .net-pill.positive { background: #e8f5ec; color: #2d8a4e; }
+    .net-pill.negative { background: #fdeaea; color: #e05c5c; }
+    .net-pill.neutral  { background: var(--clr-bg); color: var(--clr-muted); border: 1.5px solid var(--clr-border); }
+
+    /* ---- Save Button ---- */
     #saveBtnContainer {
       position: fixed; bottom: 0; left: 0; width: 100%;
       background: linear-gradient(to top, var(--clr-bg) 80%, transparent);
@@ -39,14 +116,21 @@
       display: flex; justify-content: center;
     }
     #saveBtn { width: 90%; margin: 0; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-    
-    .table-container { margin-bottom: 110px; } /* Room for fixed footer */
     .btn:active { transform: scale(0.96); opacity: 0.8; }
+
+    /* Bottom padding for fixed footer */
+    .bottom-pad { height: 100px; }
+
+    /* Date field special sizing */
+    .field-block.date-field input { font-size: .95rem; }
+
+    /* Last Synced */
+    #lastSync { text-align:center; font-size:.62rem; color:var(--clr-muted); font-weight:800; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.5px; }
   </style>
 </head>
 <body id="page-body">
 
-<div id="ptr-indicator"><div class="spinner"></div></div>
+<div id="ptr-indicator"><div class="ptr-spinner"></div></div>
 
 <!-- ===== TOP NAV ===== -->
 <nav class="top-nav">
@@ -56,206 +140,218 @@
 </nav>
 
 <!-- ===== MAIN CONTENT ===== -->
-<div class="app-wrapper" id="content-wrapper">
+<div class="app-wrapper" id="content-wrapper" style="padding-top: var(--sp-md);">
 
-  <div class="drawer-header" style="margin-top: var(--sp-sm); align-items: flex-end; gap: 10px;">
-    <div class="stat-card" style="flex:1;">
-      <div class="stat-label">📅 Date</div>
-      <input type="date" id="drawerDate" class="form-control" style="margin-top:4px; font-size:.85rem;" onchange="loadEntries()" />
-    </div>
-    <div class="stat-card" style="flex:1;">
-      <div class="stat-label">🏦 Opening *</div>
-      <input type="number" id="openingBalance" class="form-control" style="margin-top:4px; font-size:.85rem;" placeholder="0" oninput="updateTotals()" />
-    </div>
+  <!-- Date Picker -->
+  <div class="field-block date-field">
+    <div class="field-label">📅 Date</div>
+    <input type="date" id="drawerDate" onchange="loadDrawer()" />
   </div>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-sm); margin: var(--sp-md) 0;">
-    <div class="stat-card">
-      <div class="stat-label">💚 Cash In</div>
-      <div class="stat-value" id="cashInDisplay" style="font-size:1rem; color:#2d8a4e;">Rs. 0.00</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">❤️ Cash Out</div>
-      <div class="stat-value" id="cashOutDisplay" style="font-size:1rem; color:#e05c5c;">Rs. 0.00</div>
-    </div>
-    <div class="stat-card accent" style="grid-column:1/-1; text-align:center;">
-      <div class="stat-label">🏁 Closing Balance</div>
-      <div class="stat-value" id="closingDisplay" style="font-size:1.4rem;">Rs. 0.00</div>
-    </div>
+  <!-- Opening Balance -->
+  <div class="field-block">
+    <div class="field-label">🏦 Opening Balance <span style="color:var(--clr-danger);">*</span></div>
+    <input type="number" id="openingBalance" min="0" placeholder="0" oninput="calc()" />
   </div>
 
-  <div class="flex-between" style="margin-bottom: var(--sp-sm); position: relative; z-index: 10;">
-    <h2 class="section-title" style="margin-bottom:0;">Transactions</h2>
-    <button class="btn btn-primary btn-sm" id="addRowBtn" onclick="addRow();">＋ Add Row</button>
+  <!-- Cash Added -->
+  <div class="field-block">
+    <div class="field-label">💚 Cash Added <span style="font-weight:600; text-transform:none; font-size:.68rem;">(optional)</span></div>
+    <input type="number" id="cashAdded" min="0" placeholder="0" oninput="calc()" />
   </div>
 
-  <div class="table-container" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-    <table class="pet-table" style="width:100%; min-width:300px;">
-      <colgroup><col style="width:28%;"><col style="width:40%;"><col style="width:25%;"><col style="width:7%;"></colgroup>
-      <thead><tr><th>Type</th><th>Detail</th><th>Amt</th><th></th></tr></thead>
-      <tbody id="drawerBody"></tbody>
-    </table>
-    <div id="emptyDrawer" class="empty-state" style="display:none; padding:40px 0;">
-      <div class="empty-icon">📂</div>
-      <p>No transactions yet.</p>
-    </div>
+  <!-- Cash Spent -->
+  <div class="field-block">
+    <div class="field-label">❤️ Cash Spent</div>
+    <input type="number" id="cashSpent" min="0" placeholder="0" oninput="calc()" />
   </div>
 
-  <div id="lastSync" style="text-align:center; font-size:.62rem; color:var(--clr-muted); font-weight:800; text-transform:uppercase; margin-bottom: 20px; letter-spacing:0.5px;">Last Synced: Just now</div>
+  <!-- Section Divider -->
+  <div style="margin: var(--sp-md) 0 var(--sp-sm);">
+    <h2 class="section-title" style="margin-bottom: var(--sp-sm);">Daily Summary</h2>
+  </div>
 
+  <!-- Net Change Pill -->
+  <div id="netPillWrap" style="margin-bottom: var(--sp-sm);"></div>
+
+  <!-- Closing Balance Hero -->
+  <div class="summary-card">
+    <div class="sc-label">Remaining Cash</div>
+    <div class="sc-value" id="closingDisplay">Rs. 0.00</div>
+    <div class="sc-sub">Closing Balance for today</div>
+  </div>
+
+  <!-- Breakdown -->
+  <div class="breakdown-row">
+    <div class="br-label">🏦 Opening Balance</div>
+    <div class="br-value blue" id="bd-opening">Rs. 0.00</div>
+  </div>
+  <div class="breakdown-row">
+    <div class="br-label">💚 Cash Added</div>
+    <div class="br-value green" id="bd-added">Rs. 0.00</div>
+  </div>
+  <div class="breakdown-row">
+    <div class="br-label">❤️ Cash Spent</div>
+    <div class="br-value red" id="bd-spent">Rs. 0.00</div>
+  </div>
+
+  <div id="lastSync" style="margin-top: var(--sp-md);">Not yet synced</div>
+
+  <div class="bottom-pad"></div>
 </div>
 
 <!-- Fixed Footer Button -->
 <div id="saveBtnContainer">
-  <button class="btn btn-primary btn-full" id="saveBtn" onclick="saveData()">💾 Save Changes</button>
+  <button class="btn btn-primary btn-full" id="saveBtn" onclick="saveDrawer()">💾 Save Daily Summary</button>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-let entries = [];
-let startY = 0, distY = 0, activePTR = false;
-const body = document.getElementById('page-body');
+const body    = document.getElementById('page-body');
 const content = document.getElementById('content-wrapper');
+let startY = 0, distY = 0, activePTR = false;
 
-// Safe, No-Hang PTR
-window.addEventListener('touchstart', e => { if (window.scrollY === 0) startY = e.touches[0].pageY; }, {passive:true});
+/* ---- Pull-to-Refresh ---- */
+window.addEventListener('touchstart', e => { if (window.scrollY === 0) { startY = e.touches[0].pageY; activePTR = false; } }, {passive:true});
 window.addEventListener('touchmove', e => {
-  const y = e.touches[0].pageY;
-  distY = (y - startY) * 0.4;
+  distY = (e.touches[0].pageY - startY) * 0.4;
   if (distY > 0 && window.scrollY === 0) {
     activePTR = true;
     body.classList.add('ptr-pulling');
     content.style.transform = `translateY(${Math.min(distY, 80)}px)`;
   }
 }, {passive:true});
-
 window.addEventListener('touchend', async () => {
-    if (activePTR && distY >= 50) {
-        body.classList.remove('ptr-pulling');
-        body.classList.add('ptr-loading');
-        content.style.transform = `translateY(50px)`;
-        
-        // Safety timeout: ensure ptr clears even if network fails
-        const safeTimeout = setTimeout(clearPTR, 3000);
-        await loadEntries(); 
-        clearTimeout(safeTimeout);
-        setTimeout(clearPTR, 400); // Visual pause
-    } else {
-        clearPTR();
-    }
+  if (activePTR && distY >= 50) {
+    body.classList.remove('ptr-pulling');
+    body.classList.add('ptr-loading');
+    content.style.transform = 'translateY(50px)';
+    const safe = setTimeout(clearPTR, 3000);
+    await loadDrawer();
+    clearTimeout(safe);
+    setTimeout(clearPTR, 400);
+  } else { clearPTR(); }
 }, {passive:true});
-
 function clearPTR() {
-    body.classList.remove('ptr-pulling', 'ptr-loading');
-    content.style.transform = '';
-    activePTR = false; distY = 0;
+  body.classList.remove('ptr-pulling', 'ptr-loading');
+  content.style.transform = '';
+  activePTR = false; distY = 0;
 }
 
+/* ---- Init ---- */
 document.addEventListener('DOMContentLoaded', async () => {
-    // Exact Local Date lookup
-    const localDay = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-    document.getElementById('drawerDate').value = localDay;
-    await loadEntries();
+  document.getElementById('drawerDate').value = new Date().toLocaleDateString('en-CA');
+  await loadDrawer();
 });
 
-async function loadEntries() {
-    try {
-        const date = document.getElementById('drawerDate').value;
-        const res = await DB.getDrawerEntries(date);
-        const data = res || {};
-        document.getElementById('openingBalance').value = (data.openingBalance !== undefined) ? data.openingBalance : '';
-        entries = data.entries || [];
-        if (data.openingBalance === undefined && entries.length === 0) await autoFillOpening(date);
-        renderTable();
-        const now = new Date();
-        document.getElementById('lastSync').textContent = 'Last Synced: ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-    } catch (e) {
-        showToast('Sync Failed! Check connection.');
-        clearPTR();
-    }
-}
-
-async function autoFillOpening(date) {
-    const d = new Date(date); d.setDate(d.getDate() - 1);
-    const prev = await DB.getDrawerEntries(d.toLocaleDateString('en-CA'));
-    if (prev && prev.closingBalance) {
-        document.getElementById('openingBalance').value = prev.closingBalance;
-        updateTotals();
-    }
-}
-
-function renderTable() {
-    const b = document.getElementById('drawerBody');
-    const e = document.getElementById('emptyDrawer');
-    if (entries.length === 0) { b.innerHTML = ''; e.style.display = 'block'; updateTotals(); return; }
-    e.style.display = 'none';
-    b.innerHTML = entries.map((en, idx) => `
-      <tr>
-        <td>
-          <select class="form-control" style="font-size:.65rem; border-radius:8px; color:${en.type==='Cash In'?'#2d8a4e':'#e05c5c'};" onchange="updateEntry(${idx}, 'type', this.value)">
-            <option value="Cash In" ${en.type==='Cash In'?'selected':''}>IN</option>
-            <option value="Cash Out" ${en.type==='Cash Out'?'selected':''}>OUT</option>
-          </select>
-        </td>
-        <td><input type="text" value="${en.desc||''}" class="form-control" style="font-size:.7rem;" placeholder="..." oninput="updateEntry(${idx}, 'desc', this.value)" /></td>
-        <td><input type="number" value="${en.amount||''}" class="form-control" style="font-size:.7rem;" placeholder="0" oninput="updateEntry(${idx}, 'amount', parseFloat(this.value)||0)" /></td>
-        <td style="text-align:center;"><button class="btn btn-sm" onclick="removeRow(${idx})" style="color:#e05c5c; padding:2px;">✖</button></td>
-      </tr>
-    `).join('');
-    updateTotals();
-}
-
-function updateEntry(idx, key, val) {
-    entries[idx][key] = val;
-    if (key === 'type') renderTable(); else updateTotals();
-}
-
-function updateTotals() {
-    const o = parseFloat(document.getElementById('openingBalance').value) || 0;
-    const cin = entries.filter(e => e.type === 'Cash In').reduce((s, e) => s + (e.amount || 0), 0);
-    const cout = entries.filter(e => e.type === 'Cash Out').reduce((s, e) => s + (e.amount || 0), 0);
-    const c = o + cin - cout;
-    const fmt = n => 'Rs. ' + n.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-    document.getElementById('cashInDisplay').textContent = fmt(cin);
-    document.getElementById('cashOutDisplay').textContent = fmt(cout);
-    document.getElementById('closingDisplay').textContent = fmt(c);
-}
-
-function addRow() {
-    entries.push({ type: 'Cash In', desc: '', amount: '' });
-    renderTable();
-    setTimeout(() => { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }, 50);
-}
-
-function removeRow(idx) { entries.splice(idx, 1); renderTable(); }
-
-async function saveData() {
+/* ---- Load Saved Data for This Date ---- */
+async function loadDrawer() {
+  try {
     const date = document.getElementById('drawerDate').value;
-    const opening = parseFloat(document.getElementById('openingBalance').value);
-    if (isNaN(opening)) { showToast('Add Opening Balance!'); return; }
-    
-    const valid = entries.filter(e => e.desc.trim() !== '' || (e.amount && e.amount > 0));
-    for (let e of valid) {
-        if (!e.desc.trim() || !e.amount || e.amount <= 0) { showToast('Complete every row!'); return; }
-    }
-    const cin = valid.filter(e => e.type === 'Cash In').reduce((s, e) => s + (e.amount || 0), 0);
-    const cout = valid.filter(e => e.type === 'Cash Out').reduce((s, e) => s + (e.amount || 0), 0);
+    const res  = await DB.getDrawerEntries(date);
+    const data = res || {};
 
-    const res = await DB.saveDrawerEntries(date, { 
-      openingBalance: opening, 
-      cashIn: cin, cashOut: cout, closingBalance: opening + cin - cout,
-      entries: valid 
-    });
-    
-    if (res.error) { showToast('Error Saving'); return; }
-    entries = valid; renderTable(); showToast('Saved Successfully ✓');
+    if (data.openingBalance !== undefined) {
+      // Saved record exists — populate fields
+      document.getElementById('openingBalance').value = data.openingBalance ?? '';
+      document.getElementById('cashAdded').value      = data.cashAdded      ?? '';
+      document.getElementById('cashSpent').value      = data.cashSpent      ?? '';
+    } else {
+      // No record for this date — try smart fill from yesterday's closing
+      clearFields();
+      await autoFillOpening(date);
+    }
+
+    calc();
+    stamp();
+  } catch(e) {
+    showToast('Sync Failed!');
+  }
+}
+
+/* ---- Smart: Auto-fill Opening from Yesterday's Closing ---- */
+async function autoFillOpening(date) {
+  try {
+    const d = new Date(date);
+    d.setDate(d.getDate() - 1);
+    const prev = await DB.getDrawerEntries(d.toLocaleDateString('en-CA'));
+    if (prev && prev.closingBalance !== undefined) {
+      document.getElementById('openingBalance').value = prev.closingBalance;
+      calc();
+    }
+  } catch(e) { /* silent */ }
+}
+
+/* ---- Live Calculation ---- */
+function calc() {
+  const opening = getVal('openingBalance');
+  const added   = getVal('cashAdded');
+  const spent   = getVal('cashSpent');
+  const closing = opening + added - spent;
+  const net     = added - spent;
+
+  const fmt = n => 'Rs. ' + Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+  document.getElementById('closingDisplay').textContent = fmt(closing);
+  document.getElementById('bd-opening').textContent     = fmt(opening);
+  document.getElementById('bd-added').textContent       = fmt(added);
+  document.getElementById('bd-spent').textContent       = fmt(spent);
+
+  // Net Change Pill
+  const pillWrap = document.getElementById('netPillWrap');
+  let cls, icon, label;
+  if (net > 0)       { cls = 'positive'; icon = '▲'; label = `Net +${fmt(net)}`; }
+  else if (net < 0)  { cls = 'negative'; icon = '▼'; label = `Net −${fmt(Math.abs(net))}`; }
+  else               { cls = 'neutral';  icon = '↔';  label = 'Net Change: —'; }
+  pillWrap.innerHTML = `<span class="net-pill ${cls}">${icon} ${label}</span>`;
+}
+
+/* ---- Save ---- */
+async function saveDrawer() {
+  const date    = document.getElementById('drawerDate').value;
+  const opening = getVal('openingBalance');
+
+  if (!document.getElementById('openingBalance').value.trim()) {
+    showToast('Opening Balance is required ⚠️'); return;
+  }
+
+  const added   = getVal('cashAdded');
+  const spent   = getVal('cashSpent');
+  const closing = opening + added - spent;
+
+  const res = await DB.saveDrawerEntries(date, {
+    openingBalance: opening,
+    cashAdded:      added,
+    cashSpent:      spent,
+    closingBalance: closing
+  });
+
+  if (res && res.error) { showToast('Error saving ❌'); return; }
+  showToast('Saved ✓');
+  stamp();
+}
+
+/* ---- Helpers ---- */
+function getVal(id) {
+  const v = parseFloat(document.getElementById(id).value);
+  return (isNaN(v) || v < 0) ? 0 : v;
+}
+
+function clearFields() {
+  ['openingBalance','cashAdded','cashSpent'].forEach(id => document.getElementById(id).value = '');
+}
+
+function stamp() {
+  const now = new Date();
+  document.getElementById('lastSync').textContent =
+    'Last Synced: ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 }
 
 function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2400);
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
 }
 </script>
 </body>

@@ -40,6 +40,10 @@ const DB = {
     return await this.callAPI('getPets');
   },
 
+  async getPetImages(petId) {
+    return await this.callAPI('getPetImages', 'GET', { pet_id: petId });
+  },
+
   async addPet(pet) {
     return await this.callAPI('savePet', 'POST', pet);
   },

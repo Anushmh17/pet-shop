@@ -12,15 +12,9 @@
 
 <div id="ptr-indicator"><div class="ptr-spinner"></div></div>
 
-<!-- ===== TOP NAV ===== -->
-<nav class="top-nav" style="position:sticky; top:0; z-index:1000; background:#fff;">
-  <span class="nav-title">Paw-Farm Dashboard</span>
-  <div class="nav-spacer"></div>
-</nav>
-
 <!-- ===== MAIN CONTENT ===== -->
 <div id="content-wrapper">
-<div class="app-wrapper">
+<div class="app-wrapper" style="padding-top: 25px;">
 
   <!-- Greeting -->
   <div class="greeting">
@@ -81,21 +75,26 @@
 let startY = 0, distY = 0, pulling = false;
 const cnt = document.getElementById('content-wrapper');
 
-window.addEventListener('touchstart', e => { if(window.scrollY === 0){ startY = e.touches[0].pageY; pulling = true; } }, {passive:true});
+window.addEventListener('touchstart', e => { 
+    if(window.scrollY < 5){ startY = e.touches[0].pageY; pulling = true; } 
+}, {passive:true});
+
 window.addEventListener('touchmove', e => {
     if(!pulling) return;
     const y = e.touches[0].pageY;
     distY = (y - startY) * 0.4;
-    if(distY > 0 && window.scrollY === 0){
+    if(distY > 0 && window.scrollY < 5){
+        if (e.cancelable) e.preventDefault();
         document.body.classList.add('ptr-pulling');
         cnt.style.transform = `translateY(${Math.min(distY, 80)}px)`;
     }
-}, {passive:true});
+}, {passive:false});
+
 window.addEventListener('touchend', async () => {
     if(pulling && distY >= 60){
         document.body.classList.remove('ptr-pulling');
         document.body.classList.add('ptr-loading');
-        cnt.style.transform = 'translateY(40px)';
+        cnt.style.transform = 'translateY(50px)';
         await initDashboard(); 
         setTimeout(() => {
             document.body.classList.remove('ptr-loading');
@@ -178,22 +177,44 @@ async function loadBestSellingChart() {
     document.getElementById('noSales').style.display = 'none';
     document.getElementById('barChartWrap').style.display = 'block';
 
+    const maxSold = Math.max(...(salesData.map(s => s.qty).length > 0 ? salesData.map(s => s.qty) : [0]), 5);
+
     chart.innerHTML = allPets.map(p => {
         const sold = salesMap[p.name] || 0;
-        const maxSold = Math.max(...salesData.map(s => s.qty), 5);
         const heightPercent = (sold / maxSold) * 100;
-        const color = sold > 0 ? 'var(--clr-primary)' : 'var(--clr-border)';
+        
+        // Extended Category Palette
+        const cat = (p.category || 'other').toLowerCase();
+        const colors = {
+            dog:     '#5c9e6e', // Green
+            cat:     '#f0a047', // Amber
+            bird:    '#4a90e2', // Sky Blue
+            fish:    '#9b59b6', // Royal Purple
+            rabbit:  '#e67e22', // Deep Orange
+            reptile: '#8e44ad', // Purple/Indigo
+            rodent:  '#16a085', // Teal
+            other:   '#95a5a6'  // Slate Gray
+        };
+        const baseColor = colors[cat] || colors.other;
+        
+        // Determine bar color and opacity based on sales
+        const barColor = baseColor;
+        const barOpacity = sold > 0 ? 1 : 0.25;
+
         return `
-          <div style="flex:1; display:flex; flex-direction:column; align-items:center; min-width:60px; height:100%;">
-            <div style="width:24px; height:${Math.max(heightPercent, 5)}%; background:${color}; border-radius:6px 6px 0 0; transition:height .6s ease-out; position:relative; margin-top:auto;">
-              <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:.62rem; font-weight:800; color:var(--clr-text);">${sold}</span>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; min-width:70px; height:100%; position:relative;">
+            <div style="margin-top:auto; width:32px; height:${Math.max(heightPercent, 6)}%; background:${barColor}; opacity:${barOpacity}; border-radius:8px 8px 0 0; transition:height .6s cubic-bezier(0.175, 0.885, 0.32, 1.275); position:relative;">
+              <span style="position:absolute; top:-20px; left:50%; transform:translateX(-50%); font-size:.65rem; font-weight:800; color:var(--clr-text);">${sold}</span>
             </div>
           </div>
         `;
     }).join('');
 
     labels.innerHTML = allPets.map(p => `
-      <div style="flex:1; font-size:.58rem; text-align:center; font-weight:700; color:var(--clr-muted); line-height:1.1; margin-top:4px; min-width:60px;">${p.name}</div>
+      <div style="flex:1; font-size:.58rem; text-align:center; font-weight:700; color:var(--clr-muted); line-height:1.2; padding-top:10px; min-width:70px; display:flex; flex-direction:column; align-items:center; gap:2px;">
+        <span style="font-size:1.1rem; display:block; margin-bottom:2px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">${p.icon || '🐾'}</span>
+        <span style="max-width:65px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.name}</span>
+      </div>
     `).join('');
 }
 
