@@ -47,15 +47,22 @@
     <button class="btn btn-primary btn-sm" onclick="addRow()">＋ Add Row</button>
   </div>
 
-  <div class="table-container">
-    <table class="pet-table" id="drawerTable">
+  <div class="table-container" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <table class="pet-table" id="drawerTable" style="table-layout:fixed; width:100%; min-width:320px; border-collapse: collapse;">
+      <colgroup>
+        <col style="width:34%;" />   <!-- Pet Name -->
+        <col style="width:14%;" />   <!-- Qty -->
+        <col style="width:23%;" />   <!-- Price -->
+        <col style="width:19%;" />   <!-- Total -->
+        <col style="width:10%;" />   <!-- Action -->
+      </colgroup>
       <thead>
         <tr>
           <th>Pet Name</th>
-          <th>Qty</th>
+          <th style="text-align:center;">Qty</th>
           <th>Price</th>
           <th>Total</th>
-          <th style="text-align:right;">Action</th>
+          <th style="text-align:center;">Del</th>
         </tr>
       </thead>
       <tbody id="drawerBody">
@@ -63,9 +70,8 @@
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="3" style="text-align:right; font-weight:800;">GRAND TOTAL</td>
-          <td id="grandTotal" style="font-weight:800; color:var(--clr-primary);">Rs. 0.00</td>
-          <td></td>
+          <td colspan="3" style="text-align:right; font-weight:800; font-size:.82rem;">GRAND TOTAL</td>
+          <td id="grandTotal" colspan="2" style="font-weight:800; color:var(--clr-primary); font-size:.82rem;">Rs. 0.00</td>
         </tr>
       </tfoot>
     </table>
@@ -114,20 +120,29 @@ function renderTable() {
     empty.style.display = 'none';
     body.innerHTML = entries.map((e, idx) => `
       <tr id="row-${idx}">
-        <td>
-          <input type="text" value="${e.name}" class="form-control" style="font-size:.8rem; padding:6px 10px;" oninput="updateEntry(${idx}, 'name', this.value)" />
+        <td style="padding: 8px 4px 8px 10px; vertical-align:middle;">
+          <input type="text" value="${e.name}" class="form-control"
+            style="font-size:.78rem; padding:8px 10px; width:100%; height:38px; background:#fff; border-radius:10px;"
+            placeholder="Pet name"
+            oninput="updateEntry(${idx}, 'name', this.value)" />
         </td>
-        <td>
-          <input type="number" value="${e.qty}" class="form-control" style="font-size:.8rem; padding:6px 5px; width:50px; text-align:center;" min="1" oninput="updateEntry(${idx}, 'qty', parseInt(this.value)||0)" />
+        <td style="padding: 8px 4px; vertical-align:middle;">
+          <input type="number" value="${e.qty}" class="form-control"
+            style="font-size:.78rem; padding:8px 2px; width:100%; height:38px; text-align:center; background:#fff; border-radius:10px;"
+            min="1"
+            oninput="updateEntry(${idx}, 'qty', parseInt(this.value)||0)" />
         </td>
-        <td>
-          <input type="number" value="${e.price}" class="form-control" style="font-size:.8rem; padding:6px 10px; width:80px;" min="0" oninput="updateEntry(${idx}, 'price', parseFloat(this.value)||0)" />
+        <td style="padding: 8px 4px; vertical-align:middle;">
+          <input type="number" value="${e.price}" class="form-control"
+            style="font-size:.78rem; padding:8px 10px; width:100%; height:38px; background:#fff; border-radius:10px;"
+            min="0"
+            oninput="updateEntry(${idx}, 'price', parseFloat(this.value)||0)" />
         </td>
-        <td id="rowTotal-${idx}" style="font-size:.8rem; font-weight:700;">
-          Rs. ${(e.qty * e.price).toLocaleString('en-IN', {minimumFractionDigits: 2})}
+        <td id="rowTotal-${idx}" style="padding: 8px 4px; vertical-align:middle; font-size:.82rem; font-weight:800; color: #2d3436; white-space:nowrap;">
+          Rs. ${(e.qty * e.price).toLocaleString('en-IN')}
         </td>
-        <td style="text-align:right;">
-          <button class="btn btn-danger btn-icon btn-sm" onclick="removeRow(${idx})">🗑</button>
+        <td style="padding: 8px 10px 8px 4px; text-align:center; vertical-align:middle;">
+          <button class="btn btn-danger btn-sm" onclick="removeRow(${idx})" style="padding:8px 10px; border-radius:8px;">🗑</button>
         </td>
       </tr>
     `).join('');

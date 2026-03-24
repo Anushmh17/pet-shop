@@ -526,7 +526,7 @@ input, select, textarea { font-family: inherit; }
 /* ---------- ROW EDIT MODE ---------- */
 .pet-table td input {
   width: 100%;
-  min-width: 60px;
+  min-width: 0; /* Changed from 60px to prevent mobile overflow */
   background: #fff;
   border: 1.5px solid var(--clr-primary);
   border-radius: var(--r-sm);
