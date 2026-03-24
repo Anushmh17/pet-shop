@@ -1,3 +1,4 @@
+<?php
 header('Content-Type: application/json');
 
 // Session config for 9-hour timeout (9 * 60 * 60 = 32400s)
