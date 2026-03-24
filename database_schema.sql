@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS pets (
     icon VARCHAR(10), -- Emoji or code
     alert_level INT DEFAULT 10,
     stop_alert TINYINT(1) DEFAULT 0,
+    pet_variety VARCHAR(255) DEFAULT '',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

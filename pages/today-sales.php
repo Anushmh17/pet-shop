@@ -97,7 +97,10 @@ async function loadPetList() {
     const sel = document.getElementById('selectPet');
     const pets = await DB.getPets();
     const available = pets.filter(p => p.qty > 0);
-    sel.innerHTML += available.map(p => `<option value="${p.id}">${p.name} (In Stock: ${p.qty})</option>`).join('');
+    sel.innerHTML += available.map(p => {
+        const title = p.petVariety ? `${p.name} (${p.petVariety})` : p.name;
+        return `<option value="${p.id}">${title} — Available: ${p.qty}</option>`;
+    }).join('');
 }
 
 async function autoFillPrice() {

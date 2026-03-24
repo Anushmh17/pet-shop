@@ -125,7 +125,10 @@ async function loadStockAlerts() {
                 <td style="padding-left: 15px;">
                   <div style="display:flex; align-items:center; gap:8px;">
                     <span class="alert-dot" style="margin:0;"></span>
-                    <span style="font-weight:700;">${p.name}</span>
+                    <div>
+                        <div style="font-weight:700; line-height:1.2;">${p.name}</div>
+                        ${p.petVariety ? `<div style="font-size:.62rem; color:var(--clr-muted); font-weight:700;">${p.petVariety}</div>` : ''}
+                    </div>
                   </div>
                 </td>
                 <td style="text-align: center; color: var(--clr-danger); font-weight:800;">${p.qty}</td>

@@ -28,6 +28,7 @@ switch ($action) {
                 $pet['price'] = (float)$pet['price'];
                 $pet['alertLevel'] = (int)$pet['alert_level'];
                 $pet['stopAlert'] = (bool)$pet['stop_alert'];
+                $pet['petVariety'] = $pet['pet_variety'] ?? '';
             }
             echo json_encode($pets);
         } catch (PDOException $e) { respondError($e->getMessage()); }
@@ -36,13 +37,13 @@ switch ($action) {
     case 'savePet':
         try {
             $p = $input;
-            $sql = "INSERT INTO pets (name, category, source, type, qty, price, cost, icon, alert_level, stop_alert, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO pets (name, category, source, type, qty, price, cost, icon, alert_level, stop_alert, pet_variety, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 $p['name'], $p['category'], $p['source'], $p['type'],
                 $p['qty'], $p['price'], $p['cost'] ?? 0, $p['icon'],
-                $p['alertLevel'] ?? 10, $p['stopAlert'] ? 1 : 0, $p['notes'] ?? ''
+                $p['alertLevel'] ?? 10, $p['stopAlert'] ? 1 : 0, $p['petVariety'] ?? '', $p['notes'] ?? ''
             ]);
             $newId = $pdo->lastInsertId();
 

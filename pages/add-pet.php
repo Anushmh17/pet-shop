@@ -47,8 +47,8 @@
     <div style="display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-sm);">
       <div class="form-group">
         <label class="form-label" for="petCategory">Category *</label>
-        <select id="petCategory" class="form-control" required>
-          <option value="">— Select —</option>
+        <select id="petCategory" class="form-control" required onchange="handleCategoryChange()">
+          <option value="">&mdash; Select &mdash;</option>
           <option value="dog">Dog</option>
           <option value="cat">Cat</option>
           <option value="bird">Bird</option>
@@ -67,6 +67,16 @@
           <option value="Customer Supplied">Customer Supplied</option>
         </select>
       </div>
+    </div>
+
+    <!-- Universal Pet Variety Field (shows for all categories) -->
+    <div id="varietyGroup" class="form-group" style="display:none;">
+      <label class="form-label" id="varietyLabel">Breed / Variety</label>
+      <input type="text" id="petVariety" class="form-control" list="varietyList"
+        placeholder="e.g. type a breed or variety" autocomplete="off" />
+      <datalist id="varietyList">
+        <!-- Populated by JS based on selected category -->
+      </datalist>
     </div>
 
     <!-- Pet Type Selection -->
@@ -226,8 +236,8 @@ function removeImg(id) {
 }
 
 async function savePet() {
-  const name     = document.getElementById('petNameInput').value.trim();
   const category = document.getElementById('petCategory').value;
+  const petVariety = document.getElementById('petVariety').value.trim();
   const source   = document.getElementById('petSource').value;
   const type     = document.querySelector('input[name="petType"]:checked').value;
   const qty      = parseInt(document.getElementById('petStock').value) || 0;
@@ -251,6 +261,7 @@ async function savePet() {
   const newPet = {
     name, category, source, type, qty, price, cost, alertLevel: alertLvl,
     notes,
+    petVariety: petVariety,
     icon: document.getElementById('petPreview').textContent,
     images: uploadedImages.map(img => img.data),
     stopAlert: false
@@ -277,6 +288,49 @@ async function savePet() {
   }, 400);
 }
 
+/* ---- Universal Pet Variety Logic ---- */
+const CATEGORY_DEFAULTS = {
+    dog:     ['Labrador', 'Golden Retriever', 'German Shepherd', 'Poodle', 'Bulldog', 'Beagle', 'Husky'],
+    cat:     ['Persian', 'Siamese', 'Maine Coon', 'Bengal', 'Ragdoll', 'Sphynx', 'British Shorthair'],
+    bird:    ['Pigeon', 'Parrot', 'Budgerigar', 'Cockatiel', 'Love Bird', 'Macaw', 'Finch', 'Canary'],
+    rabbit:  ['Holland Lop', 'Flemish Giant', 'Dutch Rabbit', 'Mini Rex', 'Lionhead'],
+    fish:    ['Goldfish', 'Guppy', 'Betta', 'Angel Fish', 'Molly', 'Oscar', 'Discus', 'Arowana'],
+    reptile: ['Bearded Dragon', 'Gecko', 'Chameleon', 'Ball Python', 'Tortoise', 'Monitor Lizard'],
+    rodent:  ['Hamster', 'Guinea Pig', 'Ferret', 'Chinchilla', 'Gerbil'],
+    other:   []
+};
+
+const CATEGORY_LABELS = {
+    dog: 'Dog Breed', cat: 'Cat Breed', bird: 'Bird Species',
+    rabbit: 'Rabbit Breed', fish: 'Fish Variety', reptile: 'Reptile Species',
+    rodent: 'Rodent Type', other: 'Variety / Type'
+};
+
+async function handleCategoryChange() {
+    const cat   = document.getElementById('petCategory').value;
+    const group = document.getElementById('varietyGroup');
+    const input = document.getElementById('petVariety');
+    const label = document.getElementById('varietyLabel');
+
+    if (!cat) {
+        group.style.display = 'none';
+        input.value = '';
+        return;
+    }
+
+    // Show and label
+    group.style.display = 'block';
+    label.textContent = (CATEGORY_LABELS[cat] || 'Variety / Type') + ' (optional)';
+    input.placeholder = 'e.g. ' + (CATEGORY_DEFAULTS[cat]?.[0] || 'Enter variety');
+    input.value = '';
+
+    // Populate datalist: defaults + previously saved varieties for this category
+    const pets = await DB.getPets();
+    const saved = [...new Set(pets.filter(p => p.category === cat && p.petVariety).map(p => p.petVariety))];
+    const suggestions = [...new Set([...CATEGORY_DEFAULTS[cat] || [], ...saved])];
+    document.getElementById('varietyList').innerHTML = suggestions.map(t => `<option value="${t}">`).join('');
+}
+
 function resetForm() {
   document.getElementById('successModal').classList.remove('open');
   document.querySelectorAll('input:not([type="radio"])').forEach(i => i.value = '');
@@ -289,6 +343,8 @@ function resetForm() {
   document.getElementById('petPreview').textContent = ICONS[0];
   iconIdx = 0;
   togglePriceFields();
+  document.getElementById('varietyGroup').style.display = 'none';
+  document.getElementById('petVariety').value = '';
   document.getElementById('petNameInput').focus();
 }
 
