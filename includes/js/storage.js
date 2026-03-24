@@ -104,21 +104,27 @@ document.addEventListener('DOMContentLoaded', () => {
   gte.style.display = 'none';
   document.body.appendChild(gte);
 
-  // 2. Create custom dropdown
-  const wrap = document.createElement('div');
-  wrap.id = 'custom_lang_wrap';
+  // 2. Create custom dropdown (ONLY ON DASHBOARD)
+  const isDashboard = window.location.pathname.endsWith('index.php') || window.location.pathname.endsWith('/') || window.location.pathname === '';
   
-  // Try to get saved language from localStorage (better persistence than session)
-  const savedLang = localStorage.getItem('app_lang') || 'en';
-  
-  wrap.innerHTML = `
-    <select class="lang-dropdown" id="customTranslateSelector">
-      <option value="en" ${savedLang === 'en' ? 'selected' : ''}>English (US)</option>
-      <option value="ta" ${savedLang === 'ta' ? 'selected' : ''}>Tamil (தமிழ்)</option>
-      <option value="si" ${savedLang === 'si' ? 'selected' : ''}>Sinhala (සිංහල)</option>
-    </select>
-  `;
-  document.body.appendChild(wrap);
+  if (isDashboard) {
+    const wrap = document.createElement('div');
+    wrap.id = 'custom_lang_wrap';
+    const savedLang = localStorage.getItem('app_lang') || 'en';
+    
+    wrap.innerHTML = `
+      <select class="lang-dropdown" id="customTranslateSelector">
+        <option value="en" ${savedLang === 'en' ? 'selected' : ''}>English (US)</option>
+        <option value="ta" ${savedLang === 'ta' ? 'selected' : ''}>Tamil (தமிழ்)</option>
+        <option value="si" ${savedLang === 'si' ? 'selected' : ''}>Sinhala (සිංහල)</option>
+      </select>
+    `;
+    document.body.appendChild(wrap);
+
+    document.getElementById('customTranslateSelector').onchange = function() {
+      syncTranslation(this.value);
+    };
+  }
 
   window.googleTranslateElementInit = function() {
     new google.translate.TranslateElement({
@@ -127,33 +133,20 @@ document.addEventListener('DOMContentLoaded', () => {
       layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
       autoDisplay: false
     }, 'google_translate_element');
-    
-    // No more hidden sync needed here — Google handles the cookie on boot
   };
 
   const syncTranslation = (lang) => {
-    // 1. Save selector state
     localStorage.setItem('app_lang', lang);
-
-    // 2. Set the official Google Translate cookie
     const cookieVal = `/en/${lang}`;
-    // Apply for all path variants just in case
     document.cookie = `googtrans=${cookieVal}; path=/; expires=Tue, 19 Jan 2038 03:14:07 GMT`;
     document.cookie = `googtrans=${cookieVal}; path=/; domain=${window.location.hostname}; expires=Tue, 19 Jan 2038 03:14:07 GMT`;
 
-    // 3. Special handling for reset to English (delete cookie)
     if (lang === 'en') {
        document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
        document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + window.location.hostname;
     }
-
-    // 4. Reload page to trigger translation
     window.location.reload();
   }
-
-  document.getElementById('customTranslateSelector').onchange = function() {
-    syncTranslation(this.value);
-  };
 
   // Add the Google script
   const script = document.createElement('script');
