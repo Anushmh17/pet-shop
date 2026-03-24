@@ -184,8 +184,8 @@ async function loadBestSellingChart() {
         const heightPercent = (sold / maxSold) * 100;
         const color = sold > 0 ? 'var(--clr-primary)' : 'var(--clr-border)';
         return `
-          <div style="flex:1; display:flex; flex-direction:column; align-items:center; min-width:60px;">
-            <div style="width:24px; height:${Math.max(heightPercent, 5)}%; background:${color}; border-radius:6px 6px 0 0; transition:height .6s ease-out; position:relative;">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; min-width:60px; height:100%;">
+            <div style="width:24px; height:${Math.max(heightPercent, 5)}%; background:${color}; border-radius:6px 6px 0 0; transition:height .6s ease-out; position:relative; margin-top:auto;">
               <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:.62rem; font-weight:800; color:var(--clr-text);">${sold}</span>
             </div>
           </div>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Pet Shop — Final Stability Reset & Data Loader
+ * Pet Shop — Complete Visual Data Injector
  */
 header('Content-Type: text/plain');
 require_once '../includes/config.php';
@@ -9,14 +9,9 @@ try {
     echo "--- 🔌 CONNECIVITY TEST ---\n";
     echo "Host: " . DB_HOST . " | Port: 3307 | DB: " . DB_NAME . "\n";
     $pdo->query("SELECT 1");
-    echo "✅ Success: Database connection is ALIVE.\n\n";
+    echo "✅ Success: Database ALIVE.\n\n";
 
-    // 1. ENSURE TABLE COMPATIBILITY (Change JSON to LONGTEXT)
-    echo "--- 🛠️ COMPATIBILITY FIX ---\n";
-    $pdo->exec("ALTER TABLE drawer MODIFY COLUMN drawer_data LONGTEXT;");
-    echo "✅ Success: Transformed 'drawer_data' to LONGTEXT (Full Compability).\n\n";
-
-    // 2. CLEAR EXISTING DATA
+    // 1. CLEAR OLD DATA
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
     $pdo->exec("TRUNCATE TABLE pet_images;");
     $pdo->exec("TRUNCATE TABLE sales;");
@@ -24,9 +19,9 @@ try {
     $pdo->exec("TRUNCATE TABLE pets;");
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
     echo "--- 🧹 CLEANUP ---\n";
-    echo "✅ Success: Old data cleared. Fresh start initialized.\n\n";
+    echo "✅ Success: Database Reset.\n\n";
 
-    // 3. SEED PETS
+    // 2. SEED PETS (This gives us pet_ids for sales)
     $pets = [
         ['Labrador', 'dog', 'Chocolate Hunter', 'Dealer Supplied', 'Single', 3, 15000.00, 12000.00, '🐶', 10],
         ['Siamese Cat', 'cat', 'Royal Blue Point', 'Customer Supplied', 'Single', 2, 9500.00, 7000.00, '🐱', 5],
@@ -34,38 +29,47 @@ try {
         ['Red Cap Oranda', 'fish', 'Goldfish', 'Dealer Supplied', 'Single', 25, 450.00, 300.00, '🐠', 20],
         ['African Grey', 'bird', 'Parrot', 'Dealer Supplied', 'Single', 1, 85000.00, 75000.00, '🦜', 2]
     ];
-    $stmt = $pdo->prepare("INSERT INTO pets (name, category, pet_variety, source, type, qty, price, cost, icon, alert_level) VALUES (?,?,?,?,?,?,?,?,?,?)");
-    foreach($pets as $p) { $stmt->execute($p); }
+    $ins = $pdo->prepare("INSERT INTO pets (name, category, pet_variety, source, type, qty, price, cost, icon, alert_level) VALUES (?,?,?,?,?,?,?,?,?,?)");
+    foreach($pets as $p) { $ins->execute($p); }
     echo "--- 🏷️ PET INVENTORY ---\n";
-    echo "✅ Success: 5 proposal-grade pets added.\n\n";
+    echo "✅ Success: 5 Pets Added.\n\n";
 
-    // 4. SEED FINANCIAL DATA (Three day window for timezone safety)
+    // 3. SEED SALES (This triggers the Chart)
     $today = date('Y-m-d');
     $yesterday = date('Y-m-d', strtotime('-1 day'));
-    $tomorrow = date('Y-m-d', strtotime('+1 day'));
 
+    $sales = [
+        [1, 'Labrador', '🐶', 2, 15000.00, 30000.00, $today],
+        [2, 'Siamese Cat', '🐱', 1, 9500.00, 9500.00, $today],
+        [4, 'Red Cap Oranda', '🐠', 4, 450.00, 1800.00, $yesterday],
+        [1, 'Labrador', '🐶', 1, 15000.00, 15000.00, $yesterday]
+    ];
+    $sIns = $pdo->prepare("INSERT INTO sales (pet_id, pet_name, pet_icon, qty, price, total, sale_date) VALUES (?,?,?,?,?,?,?)");
+    foreach($sales as $s) { $sIns->execute($s); }
+    echo "--- 📊 PET SALES RECORDS ---\n";
+    echo "✅ Success: 4 Performance data points added (Populates the Chart).\n\n";
+
+    // 4. SEED FINANCIAL DATA (Drawer)
     $data = [
-        'openingBalance' => 12500.00, 'cashIn' => 15900.00, 'cashOut' => 2000.00, 'closingBalance' => 26400.00,
+        'openingBalance' => 25000.00, 'cashIn' => 41300.00, 'cashOut' => 500.00, 'closingBalance' => 65800.00,
         'entries' => [
-            ['type' => 'Cash In', 'desc' => 'Pet Sale - Labrador', 'amount' => 15000],
-            ['type' => 'Cash In', 'desc' => 'Pet Sale - Oranda', 'amount' => 900],
-            ['type' => 'Cash Out', 'desc' => 'Electricity Bill', 'amount' => 2000]
+            ['type' => 'Cash In', 'desc' => 'Sale: Labradors (2)', 'amount' => 30000],
+            ['type' => 'Cash In', 'desc' => 'Sale: Siamese (1)', 'amount' => 9500],
+            ['type' => 'Cash In', 'desc' => 'Sale: Fish (4)', 'amount' => 1800],
+            ['type' => 'Cash Out', 'desc' => 'Fish Food Restock', 'amount' => 500]
         ]
     ];
     $json = json_encode($data);
-
-    $dStmt = $pdo->prepare("INSERT INTO drawer (entry_date, drawer_data) VALUES (?, ?)");
-    $dStmt->execute([$yesterday, $json]);
-    $dStmt->execute([$today, $json]);
-    $dStmt->execute([$tomorrow, $json]);
+    $dIns = $pdo->prepare("INSERT INTO drawer (entry_date, drawer_data) VALUES (?, ?)");
+    $dIns->execute([$today, $json]);
+    $dIns->execute([$yesterday, $json]);
     echo "--- 💰 CASH DRAWER ---\n";
-    echo "✅ Success: Financial logs created for Yesterday, Today, and Tomorrow.\n\n";
+    echo "✅ Success: Drawer Logs Synchronized.\n\n";
 
-    echo "🎉 ALL DONE! Your website is now fully populated and stable.\n";
-    echo "🔄 CLOSE THIS TAB AND REFRESH YOUR DASHBOARD!";
+    echo "🎉 COMPLETE! Dashboard, Sales, and Drawer are now full of data.\n";
+    echo "🔄 REFRESH YOUR DASHBOARD NOW!";
 
 } catch (PDOException $e) {
-    echo "❌ FATAL ERROR: \n" . $e->getMessage();
-    echo "\n\nTip: Make sure you created 'petshop_db' in phpMyAdmin and that MySQL is running on port 3307.";
+    echo "❌ ERROR: " . $e->getMessage();
 }
 ?>
