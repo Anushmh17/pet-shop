@@ -8,15 +8,19 @@
   <link rel="stylesheet" href="../includes/css/style.css" />
   <script src="../includes/js/storage.js"></script>
 </head>
-<body>
+<body id="page-body">
+
+<div id="ptr-indicator"><div class="ptr-spinner"></div></div>
+
 <!-- ===== TOP NAV ===== -->
-<nav class="top-nav">
+<nav class="top-nav" style="position:sticky; top:0; z-index:1000; background:#fff;">
   <a href="index.php" class="nav-back" id="backBtn" aria-label="Go back">&#8592;</a>
   <span class="nav-title">Today's Sales</span>
   <div class="nav-spacer"></div>
 </nav>
 <!-- ===== MAIN CONTENT ===== -->
-<div class="app-wrapper" style="padding-top: var(--sp-md);">
+<div id="content-wrapper">
+<div class="app-wrapper" style="padding-top: var(--sp-sm);">
 
   <!-- Hero card -->
   <div class="today-hero" id="todayHero">
@@ -196,6 +200,34 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2400);
 }
+
+// --- PULL TO REFRESH LOGIC ---
+let startY = 0, distY = 0, pulling = false;
+window.addEventListener('touchstart', e => { if(window.scrollY === 0){ startY = e.touches[0].pageY; pulling = true; } }, {passive:true});
+window.addEventListener('touchmove', e => {
+    if(!pulling) return;
+    distY = (e.touches[0].pageY - startY) * 0.4;
+    if(distY > 0 && window.scrollY === 0){
+        document.body.classList.add('ptr-pulling');
+        document.getElementById('content-wrapper').style.transform = `translateY(${Math.min(distY, 80)}px)`;
+    }
+}, {passive:true});
+window.addEventListener('touchend', async () => {
+    if(pulling && distY >= 60){
+        document.body.classList.remove('ptr-pulling');
+        document.body.classList.add('ptr-loading');
+        document.getElementById('content-wrapper').style.transform = 'translateY(40px)';
+        await renderTodaySales(); 
+        setTimeout(() => {
+            document.body.classList.remove('ptr-loading');
+            document.getElementById('content-wrapper').style.transform = '';
+        }, 500);
+    } else {
+        document.body.classList.remove('ptr-pulling', 'ptr-loading');
+        document.getElementById('content-wrapper').style.transform = '';
+    }
+    pulling = false; distY = 0;
+}, {passive:true});
 </script>
 </body>
 </html>
