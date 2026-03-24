@@ -7,6 +7,10 @@
   <title>Pet Shop — Dashboard</title>
   <link rel="stylesheet" href="../includes/css/style.css" />
   <script src="../includes/js/storage.js"></script>
+  <style>
+    /* Category action card — full width below grid */
+    .card-category .card-icon { background: #fef3e2; color: #e67e22; }
+  </style>
 </head>
 <body id="page-body">
 
@@ -19,7 +23,7 @@
   <!-- Greeting -->
   <div class="greeting">
     <div class="greeting-label">Welcome back</div>
-    <div class="greeting-name">Good Afternoon, Owner 👋</div>
+    <div class="greeting-name" id="greetText">Good Day, Owner 👋</div>
     <div class="greeting-sub" id="todayDate"></div>
   </div>
 
@@ -42,6 +46,17 @@
       <span class="card-label">Drawer</span>
     </a>
   </div>
+
+  <!-- ===== CATEGORY BOX (full width) ===== -->
+  <a href="category.php" class="action-card card-category" id="btn-category" aria-label="Browse by Category"
+     style="display:flex; flex-direction:row; justify-content:flex-start; padding: 18px 20px; min-height:auto; gap:16px; margin-bottom: var(--sp-lg); border-radius: var(--r-lg);">
+    <div class="card-icon" style="width:48px; height:48px; border-radius:12px; font-size:1.4rem; flex-shrink:0;">🗂️</div>
+    <div style="text-align:left;">
+      <span class="card-label" style="font-size:1rem; display:block;">Category</span>
+      <span style="font-size:.72rem; font-weight:600; color:var(--clr-muted);">Browse pets by type</span>
+    </div>
+    <div style="margin-left:auto; color:var(--clr-muted); font-size:1rem; display:flex; align-items:center;">›</div>
+  </a>
 
   <!-- ===== CHARTS OVERVIEW ===== -->
   <section class="overview-section">
@@ -75,147 +90,140 @@
 let startY = 0, distY = 0, pulling = false;
 const cnt = document.getElementById('content-wrapper');
 
-window.addEventListener('touchstart', e => { 
-    if(window.scrollY < 5){ startY = e.touches[0].pageY; pulling = true; } 
+window.addEventListener('touchstart', e => {
+  if(window.scrollY < 5){ startY = e.touches[0].pageY; pulling = true; }
 }, {passive:true});
 
 window.addEventListener('touchmove', e => {
-    if(!pulling) return;
-    const y = e.touches[0].pageY;
-    distY = (y - startY) * 0.4;
-    if(distY > 0 && window.scrollY < 5){
-        if (e.cancelable) e.preventDefault();
-        document.body.classList.add('ptr-pulling');
-        cnt.style.transform = `translateY(${Math.min(distY, 80)}px)`;
-    }
+  if(!pulling) return;
+  const y = e.touches[0].pageY;
+  distY = (y - startY) * 0.4;
+  if(distY > 0 && window.scrollY < 5){
+    if(e.cancelable) e.preventDefault();
+    document.body.classList.add('ptr-pulling');
+    cnt.style.transform = `translateY(${Math.min(distY, 80)}px)`;
+  }
 }, {passive:false});
 
 window.addEventListener('touchend', async () => {
-    if(pulling && distY >= 60){
-        document.body.classList.remove('ptr-pulling');
-        document.body.classList.add('ptr-loading');
-        cnt.style.transform = 'translateY(50px)';
-        await initDashboard(); 
-        setTimeout(() => {
-            document.body.classList.remove('ptr-loading');
-            cnt.style.transform = '';
-        }, 500);
-    } else {
-        document.body.classList.remove('ptr-pulling', 'ptr-loading');
-        cnt.style.transform = '';
-    }
-    pulling = false; distY = 0;
+  if(pulling && distY >= 60){
+    document.body.classList.remove('ptr-pulling');
+    document.body.classList.add('ptr-loading');
+    cnt.style.transform = 'translateY(50px)';
+    await initDashboard();
+    setTimeout(() => { document.body.classList.remove('ptr-loading'); cnt.style.transform = ''; }, 500);
+  } else {
+    document.body.classList.remove('ptr-pulling', 'ptr-loading');
+    cnt.style.transform = '';
+  }
+  pulling = false; distY = 0;
 }, {passive:true});
 
 async function initDashboard() {
-    updateTodayDate();
-    await loadStockAlerts();
-    await loadBestSellingChart();
+  updateTodayDate();
+  await loadStockAlerts();
+  await loadBestSellingChart();
 }
 
 function updateTodayDate() {
-    const today = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    document.getElementById('todayDate').textContent = today.toLocaleDateString('en-US', options);
+  const now = new Date();
+  const hr  = now.getHours();
+  const greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
+  document.getElementById('greetText').textContent = greet + ', Owner 👋';
+  document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 }
 
 async function loadStockAlerts() {
-    const list = document.getElementById('stockAlertsList');
-    const pets = await DB.getPets();
-    const alertPets = pets.filter(p => !p.stop_alert && parseInt(p.qty) <= parseInt(p.alert_level));
+  const list = document.getElementById('stockAlertsList');
+  const pets = await DB.getPets();
+  const alertPets = pets.filter(p => !p.stop_alert && parseInt(p.qty) <= parseInt(p.alert_level));
 
-    if (alertPets.length === 0) {
-        list.innerHTML = '';
-        document.getElementById('noAlerts').style.display = 'block';
-        return;
-    }
+  if (alertPets.length === 0) {
+    list.innerHTML = '';
+    document.getElementById('noAlerts').style.display = 'block';
+    return;
+  }
 
-    document.getElementById('noAlerts').style.display = 'none';
-    list.innerHTML = `
-      <div class="table-container" style="margin-top: 10px;">
-        <table class="pet-table" style="border-collapse: collapse;">
-          <thead><tr><th style="padding-left:15px;">Pet</th><th style="text-align:center;">Stock</th><th style="text-align:right; padding-right:15px;">Action</th></tr></thead>
-          <tbody>
-            ${alertPets.map(p => `
-              <tr id="alert-${p.id}">
-                <td style="padding-left:15px;"><div style="font-weight:700; line-height:1.2;">${p.name}</div><div style="font-size:.62rem; color:var(--clr-muted); font-weight:700;">${p.pet_variety||''}</div></td>
-                <td style="text-align:center; color:var(--clr-danger); font-weight:800;">${p.qty}</td>
-                <td style="text-align:right; padding-right:15px;"><button class="btn btn-sm" style="font-size:.65rem; padding:4px 8px; border-radius:10px;" onclick="stopAlert('${p.id}')">Stop</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
+  document.getElementById('noAlerts').style.display = 'none';
+  list.innerHTML = `
+    <div class="table-container" style="margin-top:10px;">
+      <table class="pet-table" style="border-collapse:collapse;">
+        <thead><tr>
+          <th style="padding-left:15px;">Pet</th>
+          <th style="text-align:center;">Stock</th>
+          <th style="text-align:right; padding-right:15px;">Action</th>
+        </tr></thead>
+        <tbody>
+          ${alertPets.map(p => `
+            <tr id="alert-${p.id}">
+              <td style="padding-left:15px;">
+                <div style="font-weight:700; line-height:1.2;">${p.name}</div>
+                <div style="font-size:.62rem; color:var(--clr-muted); font-weight:700;">${p.pet_variety||''}</div>
+              </td>
+              <td style="text-align:center; color:var(--clr-danger); font-weight:800;">${p.qty}</td>
+              <td style="text-align:right; padding-right:15px;">
+                <button class="btn btn-sm" style="font-size:.65rem; padding:4px 8px; border-radius:10px;" onclick="stopAlert('${p.id}')">Stop</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`;
 }
 
 async function stopAlert(petId) {
-    const res = await DB.toggleAlert(petId, true);
-    if (!res || res.error) { showToast('Sync failed!'); return; }
-    showToast('Alert stopped');
-    const card = document.getElementById('alert-' + petId);
-    if (card) {
-        card.style.opacity = '0';
-        setTimeout(() => { card.remove(); loadStockAlerts(); }, 300);
-    }
+  const res = await DB.toggleAlert(petId, true);
+  if (!res || res.error) { showToast('Sync failed!'); return; }
+  showToast('Alert stopped');
+  const card = document.getElementById('alert-' + petId);
+  if (card) {
+    card.style.opacity = '0';
+    setTimeout(() => { card.remove(); loadStockAlerts(); }, 300);
+  }
 }
 
+const CAT_COLORS = {
+  dog:'#5c9e6e', cat:'#f0a047', bird:'#4a90e2', fish:'#9b59b6',
+  rabbit:'#e67e22', reptile:'#8e44ad', rodent:'#16a085', other:'#95a5a6'
+};
+
 async function loadBestSellingChart() {
-    const chart = document.getElementById('barChart');
-    const labels = document.getElementById('barLabels');
-    const allPets = await DB.getPets();
-    const salesData = await DB.getSalesByPet(); 
-    const salesMap = {};
-    salesData.forEach(s => salesMap[s.name] = s.qty);
+  const chart    = document.getElementById('barChart');
+  const labels   = document.getElementById('barLabels');
+  const allPets  = await DB.getPets();
+  const salesData = await DB.getSalesByPet();
+  const salesMap = {};
+  salesData.forEach(s => salesMap[s.name] = s.qty);
 
-    if (allPets.length === 0) {
-        document.getElementById('noSales').style.display = 'block';
-        document.getElementById('barChartWrap').style.display = 'none';
-        return;
-    }
+  if (allPets.length === 0) {
+    document.getElementById('noSales').style.display = 'block';
+    document.getElementById('barChartWrap').style.display = 'none';
+    return;
+  }
 
-    document.getElementById('noSales').style.display = 'none';
-    document.getElementById('barChartWrap').style.display = 'block';
+  document.getElementById('noSales').style.display = 'none';
+  document.getElementById('barChartWrap').style.display = 'block';
 
-    const maxSold = Math.max(...(salesData.map(s => s.qty).length > 0 ? salesData.map(s => s.qty) : [0]), 5);
+  const maxSold = Math.max(...(salesData.length > 0 ? salesData.map(s => s.qty) : [0]), 5);
 
-    chart.innerHTML = allPets.map(p => {
-        const sold = salesMap[p.name] || 0;
-        const heightPercent = (sold / maxSold) * 100;
-        
-        // Extended Category Palette
-        const cat = (p.category || 'other').toLowerCase();
-        const colors = {
-            dog:     '#5c9e6e', // Green
-            cat:     '#f0a047', // Amber
-            bird:    '#4a90e2', // Sky Blue
-            fish:    '#9b59b6', // Royal Purple
-            rabbit:  '#e67e22', // Deep Orange
-            reptile: '#8e44ad', // Purple/Indigo
-            rodent:  '#16a085', // Teal
-            other:   '#95a5a6'  // Slate Gray
-        };
-        const baseColor = colors[cat] || colors.other;
-        
-        // Determine bar color and opacity based on sales
-        const barColor = baseColor;
-        const barOpacity = sold > 0 ? 1 : 0.25;
+  chart.innerHTML = allPets.map(p => {
+    const sold = salesMap[p.name] || 0;
+    const h = (sold / maxSold) * 100;
+    const barColor   = CAT_COLORS[(p.category||'other').toLowerCase()] || CAT_COLORS.other;
+    const barOpacity = sold > 0 ? 1 : 0.25;
+    return `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:70px;height:100%;position:relative;">
+        <div style="margin-top:auto;width:32px;height:${Math.max(h,6)}%;background:${barColor};opacity:${barOpacity};border-radius:8px 8px 0 0;transition:height .6s cubic-bezier(0.175,.885,.32,1.275);position:relative;">
+          <span style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:.65rem;font-weight:800;color:var(--clr-text);">${sold}</span>
+        </div>
+      </div>`;
+  }).join('');
 
-        return `
-          <div style="flex:1; display:flex; flex-direction:column; align-items:center; min-width:70px; height:100%; position:relative;">
-            <div style="margin-top:auto; width:32px; height:${Math.max(heightPercent, 6)}%; background:${barColor}; opacity:${barOpacity}; border-radius:8px 8px 0 0; transition:height .6s cubic-bezier(0.175, 0.885, 0.32, 1.275); position:relative;">
-              <span style="position:absolute; top:-20px; left:50%; transform:translateX(-50%); font-size:.65rem; font-weight:800; color:var(--clr-text);">${sold}</span>
-            </div>
-          </div>
-        `;
-    }).join('');
-
-    labels.innerHTML = allPets.map(p => `
-      <div style="flex:1; font-size:.58rem; text-align:center; font-weight:700; color:var(--clr-muted); line-height:1.2; padding-top:10px; min-width:70px; display:flex; flex-direction:column; align-items:center; gap:2px;">
-        <span style="font-size:1.1rem; display:block; margin-bottom:2px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">${p.icon || '🐾'}</span>
-        <span style="max-width:65px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.name}</span>
-      </div>
-    `).join('');
+  labels.innerHTML = allPets.map(p => `
+    <div style="flex:1;font-size:.58rem;text-align:center;font-weight:700;color:var(--clr-muted);line-height:1.2;padding-top:10px;min-width:70px;display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <span style="font-size:1.1rem;display:block;margin-bottom:2px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.1));">${p.icon||'🐾'}</span>
+      <span style="max-width:65px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</span>
+    </div>`).join('');
 }
 
 function showToast(msg) {
