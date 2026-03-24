@@ -159,4 +159,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const script = document.createElement('script');
   script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
   document.body.appendChild(script);
+
+  // --- OVERKILL CLEANUP (Removes Google bar if it pops up) ---
+  setInterval(() => {
+    const bars = [
+        document.querySelector('.goog-te-banner-frame'),
+        document.querySelector('.skiptranslate'), 
+        document.querySelector('.VIpgJm-ZVi9od-ORHb-O3cg3c')
+    ];
+    bars.forEach(b => { if(b) b.remove(); });
+    document.body.style.top = '0px';
+  }, 1000);
 });
