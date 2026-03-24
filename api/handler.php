@@ -1,6 +1,19 @@
-<?php
 header('Content-Type: application/json');
+
+// Session config for 9-hour timeout (9 * 60 * 60 = 32400s)
+$timeout = 32400;
+ini_set('session.gc_maxlifetime', $timeout);
+session_set_cookie_params($timeout);
 session_start();
+
+// Auto-logout if older than 9 hours
+if (isset($_SESSION['admin_auth'], $_SESSION['login_time'])) {
+    if (time() - $_SESSION['login_time'] > $timeout) {
+        session_destroy();
+        respondError('Session expired. Please log in again.');
+    }
+}
+
 require_once '../includes/config.php';
 
 // Helper to respond with error
@@ -215,6 +228,7 @@ switch ($action) {
                     'id' => $admin['id'],
                     'username' => $admin['username']
                 ];
+                $_SESSION['login_time'] = time();
                 echo json_encode(['success' => true]);
             } else {
                 respondError('Incorrect username or password');
