@@ -49,6 +49,6 @@ CREATE TABLE IF NOT EXISTS sales (
 CREATE TABLE IF NOT EXISTS drawer (
     id INT AUTO_INCREMENT PRIMARY KEY,
     entry_date DATE UNIQUE,
-    drawer_data JSON, -- Stores the daily entry rows as JSON
+    drawer_data LONGTEXT, -- Using LONGTEXT for 100% compatibility across all MySQL versions
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

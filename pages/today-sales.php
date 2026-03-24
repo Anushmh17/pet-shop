@@ -133,7 +133,8 @@ async function recordSale() {
         petIcon: pet.icon || '🐾',
         qty: qty,
         price: price,
-        total: qty * price
+        total: qty * price,
+        saleDate: new Date().toISOString().split('T')[0]
     };
 
     const res = await DB.addSale(sale);

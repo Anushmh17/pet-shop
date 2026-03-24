@@ -1,60 +1,47 @@
 <?php
-/**
- * Pet Shop Management — Unified Data Handler (API)
- * Handles all requests from storage.js (MySQL back-end)
- */
 header('Content-Type: application/json');
 require_once '../includes/config.php';
 
+// Helper to respond with error
+function respondError($msg) {
+    echo json_encode(['error' => $msg]);
+    exit;
+}
+
+// Read JSON input for POST requests
+$input = json_decode(file_get_contents('php://input'), true);
 $action = $_GET['action'] ?? '';
-$input  = json_decode(file_get_contents('php://input'), true);
 
 switch ($action) {
-
     // --- PETS ---
     case 'getPets':
         try {
-            // Get pets
             $stmt = $pdo->query("SELECT * FROM pets ORDER BY id DESC");
-            $pets = $stmt->fetchAll();
-
-            // Append images to each pet
-            foreach ($pets as &$pet) {
-                $imgStmt = $pdo->prepare("SELECT image_data FROM pet_images WHERE pet_id = ?");
-                $imgStmt->execute([$pet['id']]);
-                $pet['images'] = $imgStmt->fetchAll(PDO::FETCH_COLUMN);
-                // Type conversion for front-end
-                $pet['qty'] = (int)$pet['qty'];
-                $pet['price'] = (float)$pet['price'];
-                $pet['alertLevel'] = (int)$pet['alert_level'];
-                $pet['stopAlert'] = (bool)$pet['stop_alert'];
-                $pet['petVariety'] = $pet['pet_variety'] ?? '';
-            }
-            echo json_encode($pets);
+            echo json_encode($stmt->fetchAll());
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 
     case 'savePet':
         try {
             $p = $input;
-            $sql = "INSERT INTO pets (name, category, source, type, qty, price, cost, icon, alert_level, stop_alert, pet_variety, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([
-                $p['name'], $p['category'], $p['source'], $p['type'],
-                $p['qty'], $p['price'], $p['cost'] ?? 0, $p['icon'],
-                $p['alertLevel'] ?? 10, $p['stopAlert'] ? 1 : 0, $p['petVariety'] ?? '', $p['notes'] ?? ''
-            ]);
-            $newId = $pdo->lastInsertId();
-
-            // Save images
-            if (!empty($p['images'])) {
-                $imgStmt = $pdo->prepare("INSERT INTO pet_images (pet_id, image_data) VALUES (?, ?)");
-                foreach ($p['images'] as $img) {
-                    $imgStmt->execute([$newId, $img]);
-                }
+            if (isset($p['id'])) {
+                $sql = "UPDATE pets SET name=?, category=?, pet_variety=?, source=?, type=?, qty=?, price=?, cost=?, icon=?, alert_level=? WHERE id=?";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    $p['name'], $p['category'], $p['pet_variety'], $p['source'],
+                    $p['type'], $p['qty'], $p['price'], $p['cost'],
+                    $p['icon'], $p['alert_level'], $p['id']
+                ]);
+            } else {
+                $sql = "INSERT INTO pets (name, category, pet_variety, source, type, qty, price, cost, icon, alert_level) VALUES (?,?,?,?,?,?,?,?,?,?)";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    $p['name'], $p['category'], $p['pet_variety'], $p['source'],
+                    $p['type'], $p['qty'], $p['price'], $p['cost'],
+                    $p['icon'] ?? '🐾', $p['alert_level'] ?? 5
+                ]);
             }
-            echo json_encode(['success' => true, 'id' => $newId]);
+            echo json_encode(['success' => true]);
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 
@@ -85,7 +72,7 @@ switch ($action) {
                 $s['qty'] = (int)$s['qty'];
                 $s['price'] = (float)$s['price'];
                 $s['total'] = (float)$s['total'];
-                $s['date'] = $s['sale_date']; // match frontend naming
+                $s['date'] = $s['sale_date']; 
                 $s['petName'] = $s['pet_name'];
                 $s['petIcon'] = $s['pet_icon'];
             }
@@ -104,7 +91,7 @@ switch ($action) {
             $stmt->execute([
                 $s['petId'], $s['petName'], $s['petIcon'],
                 $s['qty'], $s['price'], $s['total'], 
-                date('Y-m-d')
+                $s['saleDate'] ?? date('Y-m-d')
             ]);
 
             // Deduct Stock
@@ -112,16 +99,19 @@ switch ($action) {
             $upd->execute([$s['qty'], $s['petId']]);
 
             // --- SMART DRAWER INTEGRATION ---
-            $today = date('Y-m-d');
+            $today = $s['saleDate'] ?? date('Y-m-d');
             $drStmt = $pdo->prepare("SELECT drawer_data FROM drawer WHERE entry_date = ?");
             $drStmt->execute([$today]);
             $drawerRow = $drStmt->fetch();
 
+            $drawerObj = null;
             if ($drawerRow) {
                 $drawerObj = json_decode($drawerRow['drawer_data'], true);
-            } else {
-                // Determine opening from yesterday
-                $yesterday = date('Y-m-d', strtotime('-1 day'));
+            }
+
+            // Fallback if data is missing/invalid
+            if (!$drawerObj || !is_array($drawerObj)) {
+                $yesterday = date('Y-m-d', strtotime('-1 day', strtotime($today)));
                 $ysStmt = $pdo->prepare("SELECT drawer_data FROM drawer WHERE entry_date = ?");
                 $ysStmt->execute([$yesterday]);
                 $ysRow = $ysStmt->fetch();
@@ -145,19 +135,23 @@ switch ($action) {
             ];
 
             // Re-calc drawer totals
-            $drawerObj['cashIn']  = array_reduce($drawerObj['entries'], function($s, $e){ return $s + ($e['type']=='Cash In' ? $e['amount'] : 0); }, 0);
-            $drawerObj['cashOut'] = array_reduce($drawerObj['entries'], function($s, $e){ return $s + ($e['type']=='Cash Out' ? $e['amount'] : 0); }, 0);
-            $drawerObj['closingBalance'] = $drawerObj['openingBalance'] + $drawerObj['cashIn'] - $drawerObj['cashOut'];
+            $totalIn = 0; $totalOut = 0;
+            foreach ($drawerObj['entries'] as $e) {
+                if ($e['type'] === 'Cash In') $totalIn += (float)($e['amount'] ?? 0);
+                else $totalOut += (float)($e['amount'] ?? 0);
+            }
+            $drawerObj['cashIn'] = $totalIn;
+            $drawerObj['cashOut'] = $totalOut;
+            $drawerObj['closingBalance'] = (float)$drawerObj['openingBalance'] + $totalIn - $totalOut;
 
             // Save Drawer Back
             $saveDr = $pdo->prepare("INSERT INTO drawer (entry_date, drawer_data) VALUES (?, ?) ON DUPLICATE KEY UPDATE drawer_data = VALUES(drawer_data)");
             $saveDr->execute([$today, json_encode($drawerObj)]);
-            // ---------------------------------
 
             $pdo->commit();
             echo json_encode(['success' => true]);
-        } catch (PDOException $e) { 
-            $pdo->rollBack();
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
             respondError($e->getMessage()); 
         }
         break;
@@ -165,10 +159,15 @@ switch ($action) {
     // --- DRAWER ---
     case 'getDrawer':
         try {
+            $date = $_GET['date'] ?? date('Y-m-d');
             $stmt = $pdo->prepare("SELECT drawer_data FROM drawer WHERE entry_date = ?");
-            $stmt->execute([$_GET['date']]);
+            $stmt->execute([$date]);
             $row = $stmt->fetch();
-            echo $row ? $row['drawer_data'] : json_encode((object)[]);
+            if ($row) {
+                echo $row['drawer_data'];
+            } else {
+                echo json_encode((object)[]);
+            }
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 
@@ -177,20 +176,12 @@ switch ($action) {
             $sql = "INSERT INTO drawer (entry_date, drawer_data) VALUES (?, ?) 
                     ON DUPLICATE KEY UPDATE drawer_data = VALUES(drawer_data)";
             $stmt = $pdo->prepare($sql);
-            // Store the full drawer object (openingBalance, entries, closingBalance)
             $stmt->execute([$input['date'], json_encode($input['data'])]);
             echo json_encode(['success' => true]);
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 
     default:
-        respondError('Action not found');
+        respondError('Action not found: ' . $action);
         break;
 }
-
-function respondError($msg) {
-    http_response_code(500);
-    echo json_encode(['error' => $msg]);
-    exit;
-}
-?>

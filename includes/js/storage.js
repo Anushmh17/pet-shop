@@ -11,15 +11,27 @@ const DB = {
         method: method,
         headers: { 'Content-Type': 'application/json' }
       };
-      if (data) options.body = JSON.stringify(data);
+      if (data && method !== 'GET') options.body = JSON.stringify(data);
 
-      const url = `../api/handler.php?action=${action}` + (method === 'GET' && data?.date ? `&date=${data.date}` : '');
+      // Handle query params for GET
+      let url = '../api/handler.php?action=' + action;
+      if (method === 'GET' && data) {
+        for (let key in data) {
+          url += `&${key}=${encodeURIComponent(data[key])}`;
+        }
+      }
+
       const resp = await fetch(url, options);
-      if (!resp.ok) throw new Error('API Error');
+      if (!resp.ok) {
+        // Log details if failure happens
+        const errText = await resp.text();
+        console.error('API Server Error:', errText);
+        throw new Error('Server Error ' + resp.status);
+      }
       return await resp.json();
     } catch (e) {
-      console.error('Database Error:', e);
-      return method === 'GET' ? [] : { success: false };
+      console.error('Network/DB Error:', e);
+      throw e; // Rethrow to let the UI know
     }
   },
 
@@ -46,8 +58,8 @@ const DB = {
   },
 
   async getTodaySales() {
-    const all = await this.getSales();
     const today = new Date().toISOString().split('T')[0];
+    const all = await this.getSales();
     return all.filter(s => s.date === today);
   },
 
@@ -66,7 +78,8 @@ const DB = {
     return await this.callAPI('getDrawer', 'GET', { date });
   },
 
-  async saveDrawerEntries(date, entries) {
-    return await this.callAPI('saveDrawer', 'POST', { date, data: entries });
+  async saveDrawerEntries(date, payload) {
+    // Pass everything in one 'data' object
+    return await this.callAPI('saveDrawer', 'POST', { date, data: payload });
   }
 };
