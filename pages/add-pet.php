@@ -300,74 +300,84 @@ function handleNICPhoto(e) {
 }
 
 async function savePet() {
-  const name     = document.getElementById('petNameInput').value.trim();
-  const category = document.getElementById('petCategory').value;
-  const petVariety = document.getElementById('petVariety').value.trim();
-  const source   = document.getElementById('petSource').value;
-  const type     = document.querySelector('input[name="petType"]:checked').value;
-  const qty      = parseInt(document.getElementById('petStock').value) || 0;
-  const alertLvl = parseInt(document.getElementById('petAlert').value) || 10;
-  const cost     = parseFloat(document.getElementById('petCost').value) || 0;
-  const notes    = document.getElementById('petNotes').value.trim();
-
-  let price = 0;
-  if (type === 'Single') {
-    price = parseFloat(document.getElementById('petPriceSingle').value) || 0;
-  } else {
-    price = parseFloat(document.getElementById('petTotalPrice').value) || 0;
-  }
-
-  // Validation
-  if (!name)     { showToast('Pet name is required'); return; }
-  if (!category) { showToast('Select a category');    return; }
-  if (qty <= 0)  { showToast('Enter a valid quantity'); return; }
-  if (price <= 0){ showToast('Enter a valid price');   return; }
-
-  // Customer supplier validation
-  if (source === 'Customer Supplied') {
-    if (!document.getElementById('csName').value.trim()) { showToast('Enter customer name'); return; }
-    if (!document.getElementById('csNIC').value.trim())  { showToast('Enter customer NIC');  return; }
-    const csCost = parseFloat(document.getElementById('csCostPaid').value);
-    if (!csCost || csCost <= 0) { showToast('Enter amount paid to customer'); return; }
-  }
-
-  const newPet = {
-    name, category, source, type, qty, price, cost, alertLevel: alertLvl,
-    notes, petVariety,
-    icon: document.getElementById('petPreview').textContent,
-    images: uploadedImages.map(img => img.data),
-    stopAlert: false
-  };
-
   const btn = document.getElementById('submitPetBtn');
-  btn.disabled = true; btn.textContent = '⏳ Saving…';
+  
+  try {
+      const name     = document.getElementById('petNameInput').value.trim();
+      const category = document.getElementById('petCategory').value;
+      const petVariety = document.getElementById('petVariety').value.trim();
+      const source   = document.getElementById('petSource').value;
+      const type     = document.querySelector('input[name="petType"]:checked').value;
+      const qty      = parseInt(document.getElementById('petStock').value) || 0;
+      const alertLvl = parseInt(document.getElementById('petAlert').value) || 10;
+      const cost     = parseFloat(document.getElementById('petCost').value) || 0;
+      const notes    = document.getElementById('petNotes').value.trim();
 
-  const res = await DB.addPet(newPet);
+      let price = 0;
+      if (type === 'Single') {
+        price = parseFloat(document.getElementById('petPriceSingle').value) || 0;
+      } else {
+        price = parseFloat(document.getElementById('petTotalPrice').value) || 0;
+      }
 
-  if (res.error) {
-    showToast('Error saving pet. Check database.');
-    btn.disabled = false; btn.textContent = '🐾 Save Pet to Inventory';
-    return;
+      // Validation
+      if (!name)     { showToast('Pet name is required'); return; }
+      if (!category) { showToast('Select a category');    return; }
+      if (qty <= 0)  { showToast('Enter a valid quantity'); return; }
+      if (price <= 0){ showToast('Enter a valid price');   return; }
+
+      // Customer supplier validation
+      if (source === 'Customer Supplied') {
+        if (!document.getElementById('csName').value.trim()) { showToast('Enter customer name'); return; }
+        if (!document.getElementById('csNIC').value.trim())  { showToast('Enter customer NIC');  return; }
+        const csCost = parseFloat(document.getElementById('csCostPaid').value);
+        if (!csCost || csCost <= 0) { showToast('Enter amount paid to customer'); return; }
+      }
+
+      const newPet = {
+        name, category, source, type, qty, price, cost, alertLevel: alertLvl,
+        notes, petVariety,
+        icon: document.getElementById('petPreview').textContent,
+        images: uploadedImages.map(img => img.data),
+        stopAlert: false
+      };
+
+      btn.disabled = true; btn.textContent = '⏳ Saving…';
+
+      const res = await DB.addPet(newPet);
+
+      if (!res || res.error) {
+        showToast(res?.error || 'Error saving pet. Check connection.');
+        btn.disabled = false; btn.textContent = '🐾 Save Pet to Inventory';
+        return;
+      }
+
+      const petId = res.id;
+
+      // Save customer supplier if applicable
+      if (source === 'Customer Supplied' && petId) {
+        await DB.saveCustomerSupplier({
+          pet_id:      petId,
+          full_name:   document.getElementById('csName').value.trim(),
+          nic:         document.getElementById('csNIC').value.trim(),
+          nic_photo:   nicPhotoData || null,
+          address:     document.getElementById('csAddress').value.trim(),
+          cost_paid:   parseFloat(document.getElementById('csCostPaid').value) || 0,
+          description: document.getElementById('csDescription').value.trim()
+        });
+      }
+
+      setTimeout(() => {
+        document.getElementById('successName').textContent = name;
+        document.getElementById('successModal').classList.add('open');
+        btn.disabled = false; btn.textContent = '🐾 Save Pet to Inventory';
+      }, 400);
+
+  } catch (err) {
+      console.error(err);
+      showToast('Critical Error: ' + err.message);
+      btn.disabled = false; btn.textContent = '🐾 Save Pet to Inventory';
   }
-
-  // Save customer supplier if applicable
-  if (source === 'Customer Supplied' && res.id) {
-    await DB.saveCustomerSupplier({
-      pet_id:      res.id,
-      full_name:   document.getElementById('csName').value.trim(),
-      nic:         document.getElementById('csNIC').value.trim(),
-      nic_photo:   nicPhotoData || null,
-      address:     document.getElementById('csAddress').value.trim(),
-      cost_paid:   parseFloat(document.getElementById('csCostPaid').value) || 0,
-      description: document.getElementById('csDescription').value.trim()
-    });
-  }
-
-  setTimeout(() => {
-    document.getElementById('successName').textContent = name;
-    document.getElementById('successModal').classList.add('open');
-    btn.disabled = false; btn.textContent = '🐾 Save Pet to Inventory';
-  }, 400);
 }
 
 /* ---- Universal Pet Variety Logic ---- */

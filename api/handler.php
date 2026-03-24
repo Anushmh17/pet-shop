@@ -68,24 +68,49 @@ switch ($action) {
     case 'savePet':
         try {
             $p = $input;
-            if (isset($p['id'])) {
-                $sql = "UPDATE pets SET name=?, category=?, pet_variety=?, source=?, type=?, qty=?, price=?, cost=?, icon=?, alert_level=? WHERE id=?";
+            $isUpdate = isset($p['id']);
+            
+            // Map camelCase from JS to snake_case for DB
+            $name     = $p['name'] ?? '';
+            $cat      = $p['category'] ?? '';
+            $variety  = $p['petVariety'] ?? '';
+            $src      = $p['source'] ?? '';
+            $type     = $p['type'] ?? 'Single';
+            $qty      = (int)($p['qty'] ?? 0);
+            $price    = (float)($p['price'] ?? 0);
+            $cost     = (float)($p['cost'] ?? 0);
+            $icon     = $p['icon'] ?? '🐾';
+            $alert    = (int)($p['alertLevel'] ?? 5);
+            $notes    = $p['notes'] ?? '';
+
+            if ($isUpdate) {
+                $sql = "UPDATE pets SET name=?, category=?, pet_variety=?, source=?, type=?, qty=?, price=?, cost=?, icon=?, alert_level=?, notes=? WHERE id=?";
                 $stmt = $pdo->prepare($sql);
-                $stmt->execute([
-                    $p['name'], $p['category'], $p['pet_variety'], $p['source'],
-                    $p['type'], $p['qty'], $p['price'], $p['cost'],
-                    $p['icon'], $p['alert_level'], $p['id']
-                ]);
+                $stmt->execute([$name, $cat, $variety, $src, $type, $qty, $price, $cost, $icon, $alert, $notes, $p['id']]);
+                $petId = $p['id'];
             } else {
-                $sql = "INSERT INTO pets (name, category, pet_variety, source, type, qty, price, cost, icon, alert_level) VALUES (?,?,?,?,?,?,?,?,?,?)";
+                $sql = "INSERT INTO pets (name, category, pet_variety, source, type, qty, price, cost, icon, alert_level, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
                 $stmt = $pdo->prepare($sql);
-                $stmt->execute([
-                    $p['name'], $p['category'], $p['pet_variety'], $p['source'],
-                    $p['type'], $p['qty'], $p['price'], $p['cost'],
-                    $p['icon'] ?? '🐾', $p['alert_level'] ?? 5
-                ]);
+                $stmt->execute([$name, $cat, $variety, $src, $type, $qty, $price, $cost, $icon, $alert, $notes]);
+                $petId = $pdo->lastInsertId();
             }
-            echo json_encode(['success' => true]);
+
+            // --- Handle Images ---
+            if (isset($p['images']) && is_array($p['images'])) {
+                // If update, maybe clear old images? Usually better to keep if no new ones, but if new ones exist, we replace
+                if ($isUpdate && !empty($p['images'])) {
+                    $pdo->prepare("DELETE FROM pet_images WHERE pet_id = ?")->execute([$petId]);
+                }
+                
+                $imgStmt = $pdo->prepare("INSERT INTO pet_images (pet_id, image_data) VALUES (?, ?)");
+                foreach ($p['images'] as $base64) {
+                    if (!empty($base64)) {
+                        $imgStmt->execute([$petId, $base64]);
+                    }
+                }
+            }
+
+            echo json_encode(['success' => true, 'id' => (int)$petId]);
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 
