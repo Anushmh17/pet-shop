@@ -6,6 +6,7 @@
   <meta name="description" content="Add Drawer — Pet Shop Management" />
   <title>Add Drawer — Pet Shop</title>
   <link rel="stylesheet" href="../includes/css/style.css" />
+  <script src="../includes/js/storage.js"></script>
 </head>
 <body>
 
@@ -29,13 +30,13 @@
         id="drawerDate"
         class="form-control"
         style="margin-top:6px; font-size:.9rem;"
-        aria-label="Select Date"
+        onchange="loadEntries()"
       />
     </div>
 
     <div class="stat-card accent">
-      <div class="stat-label">💰 Today Drawer Cash</div>
-      <div class="stat-value" id="totalCash">Rs. 0.00</div>
+        <div class="stat-label">💰 Today Drawer Cash</div>
+        <div class="stat-value" id="totalCashDisplay">Rs. 0.00</div>
     </div>
 
   </div>
@@ -43,196 +44,130 @@
   <!-- ===== TABLE ===== -->
   <div class="flex-between" style="margin-bottom: var(--sp-sm);">
     <h2 class="section-title" style="margin-bottom:0;">Drawer Entries</h2>
-    <button class="btn btn-primary btn-sm" id="addRowBtn" onclick="addRow()">
-      ＋ Add Row
-    </button>
+    <button class="btn btn-primary btn-sm" onclick="addRow()">＋ Add Row</button>
   </div>
 
   <div class="table-container">
-    <table class="pet-table" id="drawerTable" aria-label="Drawer entries table">
+    <table class="pet-table" id="drawerTable">
       <thead>
         <tr>
           <th>Pet Name</th>
           <th>Qty</th>
-          <th style="min-width:70px;">Price</th>
+          <th>Price</th>
           <th>Total</th>
           <th style="text-align:right;">Action</th>
         </tr>
       </thead>
       <tbody id="drawerBody">
-        <!-- rows added by JS -->
+        <!-- Rows loaded via JS -->
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="3" style="text-align:right; letter-spacing:.4px;">TOTAL</td>
-          <td id="footTotal">Rs. 0.00</td>
+          <td colspan="3" style="text-align:right; font-weight:800;">GRAND TOTAL</td>
+          <td id="grandTotal" style="font-weight:800; color:var(--clr-primary);">Rs. 0.00</td>
           <td></td>
         </tr>
       </tfoot>
     </table>
   </div>
 
-  <div id="emptyTable" class="empty-state" style="display:none;">
-    <div class="empty-icon">📋</div>
-    <p>No entries yet. Tap "Add Row" to begin.</p>
+  <div id="emptyDrawer" class="empty-state" style="display:none;">
+    <div class="empty-icon">📂</div>
+    <p>No entries for this date.</p>
   </div>
 
   <!-- Save button -->
-  <button class="btn btn-primary btn-full mt-md" onclick="saveDrawer()" id="saveBtn">
-    💾 Save Drawer
+  <button class="btn btn-primary btn-full mt-md" id="saveBtn" onclick="saveData()">
+    💾 Save Drawer Entries
   </button>
 
 </div><!-- /app-wrapper -->
 
-<!-- ===== DELETE CONFIRM MODAL ===== -->
-<div class="modal-overlay" id="deleteModal" role="dialog" aria-modal="true" aria-label="Confirm delete">
-  <div class="modal-box">
-    <div class="modal-title">Delete Row?</div>
-    <p style="color:var(--clr-muted); font-size:.9rem;">This row will be removed permanently.</p>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-danger" id="confirmDelete">Delete</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== TOAST ===== -->
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
 <script>
-/* ---- Set today's date ---- */
-(function () {
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('drawerDate').value = today;
-})();
+let entries = [];
 
-/* ---- Row state ---- */
-let rows = [];
-let rowCount = 0;
-let pendingDeleteId = null;
+document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('drawerDate').value = today;
+    loadEntries();
+});
 
-/* ---- Pre-loaded sample rows ---- */
-const sampleRows = [
-  { id: ++rowCount, name: 'Golden Retriever', qty: 2, price: 15000 },
-  { id: ++rowCount, name: 'Persian Cat',      qty: 1, price: 8500  },
-];
-sampleRows.forEach(r => rows.push(r));
-
-/* ---- Render ---- */
-function render() {
-  const tbody = document.getElementById('drawerBody');
-  const emptyEl = document.getElementById('emptyTable');
-
-  if (rows.length === 0) {
-    tbody.innerHTML = '';
-    const container = document.querySelector('.table-container');
-    if (container) container.style.display = 'none';
-    emptyEl.style.display = '';
-    updateTotal();
-    return;
-  }
-
-  emptyEl.style.display = 'none';
-  const container = document.querySelector('.table-container');
-  if (container) container.style.display = '';
-
-  tbody.innerHTML = rows.map(r => `
-    <tr id="row-${r.id}" data-id="${r.id}">
-      <td>
-        <input type="text" value="${escHtml(r.name)}" placeholder="Pet Name"
-          onchange="updateField(${r.id},'name',this.value)"
-          aria-label="Pet name" />
-      </td>
-      <td>
-        <input type="number" value="${r.qty}" min="1" placeholder="0"
-          style="width:56px; text-align:center;"
-          onchange="updateField(${r.id},'qty',+this.value)"
-          aria-label="Quantity" />
-      </td>
-      <td>
-        <input type="number" value="${r.price}" min="0" placeholder="0"
-          style="width:80px;"
-          onchange="updateField(${r.id},'price',+this.value)"
-          aria-label="Price" />
-      </td>
-      <td style="font-weight:800; color:var(--clr-primary);">
-        Rs. ${(r.qty * r.price).toLocaleString('en-IN', {minimumFractionDigits:2})}
-      </td>
-      <td class="actions">
-        <button class="btn btn-danger btn-sm btn-icon" onclick="requestDelete(${r.id})"
-          aria-label="Delete row ${r.id}" title="Delete">🗑</button>
-      </td>
-    </tr>
-  `).join('');
-
-  updateTotal();
+function loadEntries() {
+    const date = document.getElementById('drawerDate').value;
+    entries = DB.getDrawerEntries(date);
+    renderTable();
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function renderTable() {
+    const body = document.getElementById('drawerBody');
+    const empty= document.getElementById('emptyDrawer');
+
+    if (entries.length === 0) {
+        body.innerHTML = '';
+        empty.style.display = '';
+        updateTotals();
+        return;
+    }
+
+    empty.style.display = 'none';
+    body.innerHTML = entries.map((e, idx) => `
+      <tr id="row-${idx}">
+        <td>
+          <input type="text" value="${e.name}" class="form-control" style="font-size:.8rem; padding:6px 10px;" oninput="updateEntry(${idx}, 'name', this.value)" />
+        </td>
+        <td>
+          <input type="number" value="${e.qty}" class="form-control" style="font-size:.8rem; padding:6px 5px; width:50px; text-align:center;" min="1" oninput="updateEntry(${idx}, 'qty', parseInt(this.value)||0)" />
+        </td>
+        <td>
+          <input type="number" value="${e.price}" class="form-control" style="font-size:.8rem; padding:6px 10px; width:80px;" min="0" oninput="updateEntry(${idx}, 'price', parseFloat(this.value)||0)" />
+        </td>
+        <td id="rowTotal-${idx}" style="font-size:.8rem; font-weight:700;">
+          Rs. ${(e.qty * e.price).toLocaleString('en-IN', {minimumFractionDigits: 2})}
+        </td>
+        <td style="text-align:right;">
+          <button class="btn btn-danger btn-icon btn-sm" onclick="removeRow(${idx})">🗑</button>
+        </td>
+      </tr>
+    `).join('');
+
+    updateTotals();
 }
 
-function updateField(id, field, val) {
-  const row = rows.find(r => r.id === id);
-  if (!row) return;
-  row[field] = val;
-  // Re-render only the total cell of this row
-  const tr = document.getElementById('row-' + id);
-  if (tr) {
-    tr.querySelectorAll('td')[3].textContent =
-      'Rs. ' + (row.qty * row.price).toLocaleString('en-IN', {minimumFractionDigits:2});
-  }
-  updateTotal();
+function updateEntry(idx, key, val) {
+    entries[idx][key] = val;
+    const rowTotal = (entries[idx].qty * entries[idx].price).toLocaleString('en-IN', {minimumFractionDigits: 2});
+    document.getElementById(`rowTotal-${idx}`).textContent = 'Rs. ' + rowTotal;
+    updateTotals();
+}
+
+function updateTotals() {
+    const total = entries.reduce((sum, e) => sum + (e.qty * e.price), 0);
+    const fmt = 'Rs. ' + total.toLocaleString('en-IN', {minimumFractionDigits: 2});
+    document.getElementById('grandTotal').textContent = fmt;
+    document.getElementById('totalCashDisplay').textContent = fmt;
 }
 
 function addRow() {
-  rows.push({ id: ++rowCount, name: '', qty: 1, price: 0 });
-  render();
-  // Focus first input of new row
-  const newRow = document.getElementById('row-' + rowCount);
-  if (newRow) newRow.querySelector('input').focus();
+    entries.push({ name: '', qty: 1, price: 0 });
+    renderTable();
 }
 
-function requestDelete(id) {
-  pendingDeleteId = id;
-  document.getElementById('deleteModal').classList.add('open');
+function removeRow(idx) {
+    entries.splice(idx, 1);
+    renderTable();
 }
 
-function closeModal() {
-  document.getElementById('deleteModal').classList.remove('open');
-  pendingDeleteId = null;
-}
-
-document.getElementById('confirmDelete').addEventListener('click', () => {
-  if (pendingDeleteId !== null) {
-    rows = rows.filter(r => r.id !== pendingDeleteId);
-    pendingDeleteId = null;
-    closeModal();
-    render();
-    showToast('Row deleted');
-  }
-});
-
-/* Click outside modal to close */
-document.getElementById('deleteModal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
-
-function updateTotal() {
-  const total = rows.reduce((s, r) => s + (r.qty * r.price), 0);
-  const fmt = 'Rs. ' + total.toLocaleString('en-IN', {minimumFractionDigits:2});
-  document.getElementById('footTotal').textContent = fmt;
-  document.getElementById('totalCash').textContent = fmt;
-}
-
-function saveDrawer() {
-  const date = document.getElementById('drawerDate').value;
-  if (rows.length === 0) { showToast('Add at least one row first'); return; }
-  const btn = document.getElementById('saveBtn');
-  btn.disabled = true;
-  btn.textContent = '✓ Saved!';
-  showToast(`Drawer saved for ${date} ✓`);
-  setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Save Drawer'; }, 2000);
+function saveData() {
+    const date = document.getElementById('drawerDate').value;
+    DB.saveDrawerEntries(date, entries);
+    showToast('Drawer data saved successfully ✓');
+    
+    // Pulse effect
+    const btn = document.getElementById('saveBtn');
+    btn.textContent = '✓ Saved Successfully';
+    setTimeout(() => { btn.textContent = '💾 Save Drawer Entries'; }, 2000);
 }
 
 function showToast(msg) {
@@ -241,9 +176,6 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2400);
 }
-
-/* Initial render */
-render();
 </script>
 </body>
 </html>
