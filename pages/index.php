@@ -10,12 +10,7 @@
 </head>
 <body>
 
-<!-- ===== TOP NAV ===== -->
-<nav class="top-nav">
-  <div class="nav-spacer"></div>
-  <span class="nav-title">🐾 Pet Shop</span>
-  <div class="nav-spacer"></div>
-</nav>
+
 
 <!-- ===== MAIN CONTENT ===== -->
 <div class="app-wrapper">

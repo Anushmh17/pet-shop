@@ -124,7 +124,7 @@ switch ($action) {
             $stmt = $pdo->prepare("SELECT drawer_data FROM drawer WHERE entry_date = ?");
             $stmt->execute([$_GET['date']]);
             $row = $stmt->fetch();
-            echo $row ? $row['drawer_data'] : json_encode([]);
+            echo $row ? $row['drawer_data'] : json_encode((object)[]);
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 
@@ -133,6 +133,7 @@ switch ($action) {
             $sql = "INSERT INTO drawer (entry_date, drawer_data) VALUES (?, ?) 
                     ON DUPLICATE KEY UPDATE drawer_data = VALUES(drawer_data)";
             $stmt = $pdo->prepare($sql);
+            // Store the full drawer object (openingBalance, entries, closingBalance)
             $stmt->execute([$input['date'], json_encode($input['data'])]);
             echo json_encode(['success' => true]);
         } catch (PDOException $e) { respondError($e->getMessage()); }

@@ -10,12 +10,7 @@
 </head>
 <body>
 
-<!-- ===== TOP NAV ===== -->
-<nav class="top-nav">
-  <a href="index.php" class="nav-back" id="backBtn" aria-label="Go back">&#8592;</a>
-  <span class="nav-title">Today's Sales</span>
-  <div class="nav-spacer"></div>
-</nav>
+
 
 <!-- ===== MAIN CONTENT ===== -->
 <div class="app-wrapper" style="padding-top: var(--sp-md);">

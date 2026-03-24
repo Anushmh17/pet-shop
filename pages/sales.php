@@ -20,16 +20,23 @@
 <!-- ===== MAIN CONTENT ===== -->
 <div class="app-wrapper" style="padding-top: var(--sp-md);">
 
-  <!-- Top Filter Bar -->
-  <div class="flex-between" style="margin-bottom: var(--sp-md); gap: var(--sp-sm);">
-    <h2 class="section-title" style="margin-bottom:0;">Sales Range</h2>
-    <select class="form-control" id="salesRange"
-      style="max-width:140px; font-size:.82rem; padding:8px 10px; height:auto; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.05);"
-      onchange="applyFilter()">
-      <option value="thisWeek" selected>This Week</option>
-      <option value="thisMonth">This Month</option>
-      <option value="lastMonth">Last Month</option>
-    </select>
+  <!-- Date Range Filter -->
+  <div style="margin-bottom: var(--sp-md);">
+    <h2 class="section-title" style="margin-bottom: var(--sp-sm);">Sales Range</h2>
+    <div style="display:flex; gap: var(--sp-sm); align-items:center; flex-wrap:wrap;">
+      <div style="flex:1; min-width:130px;">
+        <label style="font-size:.7rem; font-weight:700; color:var(--clr-muted); display:block; margin-bottom:4px;">FROM</label>
+        <input type="date" id="dateFrom" class="form-control"
+          style="font-size:.85rem; padding:9px 10px; height:auto; background:#fff;"
+          onchange="applyFilter()" />
+      </div>
+      <div style="flex:1; min-width:130px;">
+        <label style="font-size:.7rem; font-weight:700; color:var(--clr-muted); display:block; margin-bottom:4px;">TO</label>
+        <input type="date" id="dateTo" class="form-control"
+          style="font-size:.85rem; padding:9px 10px; height:auto; background:#fff;"
+          onchange="applyFilter()" />
+      </div>
+    </div>
   </div>
 
 
@@ -130,38 +137,24 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
+    // Default: start of current month → today
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    document.getElementById('dateFrom').value = `${y}-${m}-01`;
+    document.getElementById('dateTo').value   = `${y}-${m}-${d}`;
     await applyFilter();
 });
 
 async function getFilteredSales() {
-    const range = document.getElementById('salesRange').value;
+    const fromVal = document.getElementById('dateFrom').value;
+    const toVal   = document.getElementById('dateTo').value;
     const allSales = await DB.getSales();
-    const now = new Date();
-    
-    // Helper to get local YYYY-MM-DD
-    const toYMD = (d) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    };
-
-    const currentYMD = toYMD(now);
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
-    const startOfWeekYMD = toYMD(startOfWeek);
 
     return allSales.filter(s => {
-        if (range === 'thisMonth') {
-            const [y, m] = s.date.split('-');
-            return parseInt(y) === now.getFullYear() && parseInt(m) === (now.getMonth() + 1);
-        } else if (range === 'lastMonth') {
-            const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const [y, m] = s.date.split('-');
-            return parseInt(y) === last.getFullYear() && parseInt(m) === (last.getMonth() + 1);
-        } else if (range === 'thisWeek') {
-            return s.date >= startOfWeekYMD && s.date <= currentYMD;
-        }
+        if (fromVal && s.date < fromVal) return false;
+        if (toVal   && s.date > toVal)   return false;
         return true;
     });
 }
