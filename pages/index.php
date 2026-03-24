@@ -1,3 +1,10 @@
+<?php
+session_start();
+if (!isset($_SESSION['admin_auth'])) {
+    header('Location: login.php');
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,6 +17,12 @@
   <style>
     /* Category action card — full width below grid */
     .card-category .card-icon { background: #fef3e2; color: #e67e22; }
+    .profile-link {
+        position: absolute; top: 0; right: 0; width: 50px; height: 50px;
+        background: white; border-radius: 50%; box-shadow: var(--shadow-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem; border: 1.5px solid var(--clr-border);
+    }
   </style>
 </head>
 <body id="page-body">
@@ -21,7 +34,8 @@
 <div class="app-wrapper" style="padding-top: 25px;">
 
   <!-- Greeting -->
-  <div class="greeting">
+  <div class="greeting" style="position:relative;">
+    <a href="profile.php" class="profile-link" aria-label="Admin Profile">👤</a>
     <div class="greeting-label">Welcome back</div>
     <div class="greeting-name" id="greetText">Good Day, Owner 👋</div>
     <div class="greeting-sub" id="todayDate"></div>

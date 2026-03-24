@@ -1,5 +1,6 @@
 <?php
 header('Content-Type: application/json');
+session_start();
 require_once '../includes/config.php';
 
 // Helper to respond with error
@@ -197,6 +198,53 @@ switch ($action) {
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$input['date'], json_encode($input['data'])]);
             echo json_encode(['success' => true]);
+        } catch (PDOException $e) { respondError($e->getMessage()); }
+        break;
+
+    // --- AUTHENTICATION ---
+    case 'login':
+        try {
+            $u = $input['username'] ?? '';
+            $p = $input['password'] ?? '';
+            $stmt = $pdo->prepare("SELECT * FROM admins WHERE username = ?");
+            $stmt->execute([$u]);
+            $admin = $stmt->fetch();
+
+            if ($admin && password_verify($p, $admin['password'])) {
+                $_SESSION['admin_auth'] = [
+                    'id' => $admin['id'],
+                    'username' => $admin['username']
+                ];
+                echo json_encode(['success' => true]);
+            } else {
+                respondError('Incorrect username or password');
+            }
+        } catch (PDOException $e) { respondError($e->getMessage()); }
+        break;
+
+    case 'logout':
+        session_destroy();
+        echo json_encode(['success' => true]);
+        break;
+
+    case 'changePassword':
+        try {
+            if (!isset($_SESSION['admin_auth'])) respondError('Unauthorized');
+            $curr = $input['currentPassword'] ?? '';
+            $new  = $input['newPassword'] ?? '';
+            
+            $stmt = $pdo->prepare("SELECT password FROM admins WHERE id = ?");
+            $stmt->execute([$_SESSION['admin_auth']['id']]);
+            $hash = $stmt->fetchColumn();
+
+            if (password_verify($curr, $hash)) {
+                $newHash = password_hash($new, PASSWORD_DEFAULT);
+                $upd = $pdo->prepare("UPDATE admins SET password = ? WHERE id = ?");
+                $upd->execute([$newHash, $_SESSION['admin_auth']['id']]);
+                echo json_encode(['success' => true]);
+            } else {
+                respondError('Incorrect current password');
+            }
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 

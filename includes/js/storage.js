@@ -93,6 +93,17 @@ const DB = {
   async saveDrawerEntries(date, payload) {
     // Pass everything in one 'data' object
     return await this.callAPI('saveDrawer', 'POST', { date, data: payload });
+  },
+
+  // --- AUTH ---
+  async login(username, password) {
+    return await this.callAPI('login', 'POST', { username, password });
+  },
+  async logout() {
+    return await this.callAPI('logout', 'POST');
+  },
+  async changePassword(currentPassword, newPassword) {
+    return await this.callAPI('changePassword', 'POST', { currentPassword, newPassword });
   }
 };
 
@@ -104,26 +115,24 @@ document.addEventListener('DOMContentLoaded', () => {
   gte.style.display = 'none';
   document.body.appendChild(gte);
 
-  // 2. Create custom dropdown (ONLY ON DASHBOARD)
-  const isDashboard = window.location.pathname.endsWith('index.php') || window.location.pathname.endsWith('/') || window.location.pathname === '';
+  // 2. Create custom dropdown (ONLY ON PROFILE PAGE)
+  const isProfilePage = window.location.pathname.endsWith('profile.php');
   
-  if (isDashboard) {
-    const wrap = document.createElement('div');
-    wrap.id = 'custom_lang_wrap';
-    const savedLang = localStorage.getItem('app_lang') || 'en';
-    
-    wrap.innerHTML = `
-      <select class="lang-dropdown" id="customTranslateSelector">
-        <option value="en" ${savedLang === 'en' ? 'selected' : ''}>English (US)</option>
-        <option value="ta" ${savedLang === 'ta' ? 'selected' : ''}>Tamil (தமிழ்)</option>
-        <option value="si" ${savedLang === 'si' ? 'selected' : ''}>Sinhala (සිංහල)</option>
-      </select>
-    `;
-    document.body.appendChild(wrap);
-
-    document.getElementById('customTranslateSelector').onchange = function() {
-      syncTranslation(this.value);
-    };
+  if (isProfilePage) {
+    const target = document.getElementById('lang-holder');
+    if (target) {
+        const savedLang = localStorage.getItem('app_lang') || 'en';
+        target.innerHTML = `
+          <select class="lang-dropdown" id="customTranslateSelector" style="width:100%; position:static;">
+            <option value="en" ${savedLang === 'en' ? 'selected' : ''}>English (US)</option>
+            <option value="ta" ${savedLang === 'ta' ? 'selected' : ''}>Tamil (தமிழ்)</option>
+            <option value="si" ${savedLang === 'si' ? 'selected' : ''}>Sinhala (සිංහල)</option>
+          </select>
+        `;
+        document.getElementById('customTranslateSelector').onchange = function() {
+          syncTranslation(this.value);
+        };
+    }
   }
 
   window.googleTranslateElementInit = function() {

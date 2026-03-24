@@ -1,6 +1,17 @@
 -- Pet Shop Management System
 -- Database Creation Script
 
+-- Admins Table (for authentication)
+CREATE TABLE IF NOT EXISTS admins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Default Admin (Password is 'admin123' for setup — please CHANGE this immediately)
+INSERT IGNORE INTO admins (username, password) 
+VALUES ('admin', '$2y$10$UoE2RByR2x7L2c5.xZp7re/u5fXQ5YmRz0Zp9e3x0.v/7s9p8u3Kq');
 -- 1. Database name: petshop_db
 CREATE DATABASE IF NOT EXISTS petshop_db;
 USE petshop_db;
