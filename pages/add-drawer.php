@@ -35,7 +35,7 @@
     </div>
 
     <div class="stat-card" style="flex:1;">
-      <div class="stat-label">🏦 Opening Balance</div>
+      <div class="stat-label">🏦 Opening Balance *</div>
       <input
         type="number"
         id="openingBalance"
@@ -53,12 +53,12 @@
   <div style="display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-sm); margin: var(--sp-md) 0;">
 
     <div class="stat-card">
-      <div class="stat-label">💚 Cash In</div>
+      <div class="stat-label">💚 Cash In Total</div>
       <div class="stat-value" id="cashInDisplay" style="font-size:1rem; color:#2d8a4e;">Rs. 0.00</div>
     </div>
 
     <div class="stat-card">
-      <div class="stat-label">❤️ Cash Out</div>
+      <div class="stat-label">❤️ Cash Out Total</div>
       <div class="stat-value" id="cashOutDisplay" style="font-size:1rem; color:#e05c5c;">Rs. 0.00</div>
     </div>
 
@@ -71,15 +71,15 @@
 
   <!-- ===== TABLE ===== -->
   <div class="flex-between" style="margin-bottom: var(--sp-sm);">
-    <h2 class="section-title" style="margin-bottom:0;">Drawer Entries</h2>
-    <button class="btn btn-primary btn-sm" onclick="addRow()">＋ Add Row</button>
+    <h2 class="section-title" style="margin-bottom:0;">Transaction Rows</h2>
+    <button class="btn btn-primary btn-sm" onclick="addRow()">＋ Add Transaction</button>
   </div>
 
   <div class="table-container" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
     <table class="pet-table" id="drawerTable" style="table-layout:fixed; width:100%; min-width:300px; border-collapse: collapse;">
       <colgroup>
-        <col style="width:24%;" />   <!-- Type -->
-        <col style="width:44%;" />   <!-- Description -->
+        <col style="width:26%;" />   <!-- Type -->
+        <col style="width:42%;" />   <!-- Description -->
         <col style="width:22%;" />   <!-- Amount -->
         <col style="width:10%;" />   <!-- Action -->
       </colgroup>
@@ -94,19 +94,24 @@
       <tbody id="drawerBody">
         <!-- Rows loaded via JS -->
       </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="2" style="text-align:right; font-weight:800; font-size:.82rem; padding:8px 10px;">CLOSING BALANCE</td>
-          <td id="footerClosing" colspan="2" style="font-weight:800; color:var(--clr-primary); font-size:.82rem; padding:8px 4px;">Rs. 0.00</td>
-        </tr>
-      </tfoot>
     </table>
   </div>
 
   <div id="emptyDrawer" class="empty-state" style="display:none;">
     <div class="empty-icon">📂</div>
-    <p>No entries yet. Add a row to get started.</p>
+    <p>No transactions for this date.</p>
   </div>
+
+  <!-- Suggestion Datalist -->
+  <datalist id="descSuggestions">
+    <option value="Pet Sale">
+    <option value="Pet Purchase">
+    <option value="Food Expense">
+    <option value="Medicine">
+    <option value="Shop Maintenance">
+    <option value="Rent Payment">
+    <option value="Other">
+  </datalist>
 
   <!-- Save button -->
   <button class="btn btn-primary btn-full mt-md" id="saveBtn" onclick="saveData()">
@@ -137,8 +142,8 @@ async function loadEntries() {
     // Restore entries
     entries = data.entries || [];
 
-    // If no opening balance stored, try to auto-fill from previous day's closing
-    if (!data.openingBalance) {
+    // If no data saved for today, check yesterday's closing
+    if (!data.openingBalance && entries.length === 0) {
         await autoFillOpening(date);
     }
 
@@ -146,7 +151,6 @@ async function loadEntries() {
 }
 
 async function autoFillOpening(date) {
-    // Get yesterday's date
     const d = new Date(date);
     d.setDate(d.getDate() - 1);
     const prevDate = d.toISOString().split('T')[0];
@@ -177,20 +181,20 @@ function renderTable() {
               <select class="form-control"
                 style="font-size:.75rem; padding:7px 5px; height:38px; background:#fff; border-radius:10px; color:${typeColor}; font-weight:700;"
                 onchange="updateEntry(${idx}, 'type', this.value)">
-                <option value="Cash In"  ${e.type === 'Cash In'  ? 'selected' : ''}>💚 Cash In</option>
-                <option value="Cash Out" ${e.type === 'Cash Out' ? 'selected' : ''}>❤️ Cash Out</option>
+                <option value="Cash In"  ${e.type === 'Cash In'  ? 'selected' : ''}>💚 In</option>
+                <option value="Cash Out" ${e.type === 'Cash Out' ? 'selected' : ''}>❤️ Out</option>
               </select>
             </td>
             <td style="padding:8px 4px; vertical-align:middle;">
-              <input type="text" value="${e.desc || ''}" class="form-control"
+              <input type="text" value="${e.desc || ''}" class="form-control" list="descSuggestions"
                 style="font-size:.78rem; padding:8px 10px; width:100%; height:38px; background:#fff; border-radius:10px;"
-                placeholder="Description"
+                placeholder="Transaction detail"
                 oninput="updateEntry(${idx}, 'desc', this.value)" />
             </td>
             <td style="padding:8px 4px; vertical-align:middle;">
-              <input type="number" value="${e.amount || 0}" class="form-control"
+              <input type="number" value="${e.amount || ''}" class="form-control"
                 style="font-size:.78rem; padding:8px 6px; width:100%; height:38px; background:#fff; border-radius:10px;"
-                min="0" placeholder="0.00"
+                min="0.01" step="0.01" placeholder="0.00"
                 oninput="updateEntry(${idx}, 'amount', parseFloat(this.value)||0)" />
             </td>
             <td style="padding:8px 6px; text-align:center; vertical-align:middle;">
@@ -205,7 +209,8 @@ function renderTable() {
 
 function updateEntry(idx, key, val) {
     entries[idx][key] = val;
-    updateTotals();
+    if (key === 'type') renderTable(); // re-render only for color change
+    else updateTotals();
 }
 
 function updateTotals() {
@@ -219,16 +224,13 @@ function updateTotals() {
     document.getElementById('cashInDisplay').textContent  = fmt(cashIn);
     document.getElementById('cashOutDisplay').textContent = fmt(cashOut);
     document.getElementById('closingDisplay').textContent = fmt(closing);
-    document.getElementById('footerClosing').textContent  = fmt(closing);
 }
 
 function addRow() {
-    entries.push({ type: 'Cash In', desc: '', amount: 0 });
+    entries.push({ type: 'Cash In', desc: '', amount: '' });
     renderTable();
-    // scroll to new row
     const body = document.getElementById('drawerBody');
-    const lastRow = body.lastElementChild;
-    if (lastRow) lastRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (body.lastElementChild) body.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function removeRow(idx) {
@@ -238,9 +240,26 @@ function removeRow(idx) {
 
 async function saveData() {
     const date    = document.getElementById('drawerDate').value;
-    const opening = parseFloat(document.getElementById('openingBalance').value) || 0;
-    const cashIn  = entries.filter(e => e.type === 'Cash In').reduce((s, e) => s + (e.amount || 0), 0);
-    const cashOut = entries.filter(e => e.type === 'Cash Out').reduce((s, e) => s + (e.amount || 0), 0);
+    const openingInput = document.getElementById('openingBalance');
+    const opening = parseFloat(openingInput.value);
+
+    // --- Validation ---
+    if (isNaN(opening)) {
+        showToast('Opening balance is required!');
+        openingInput.focus();
+        return;
+    }
+
+    // Filter out completely empty rows, but validate rows with partial data
+    const validEntries = entries.filter(e => e.desc.trim() !== '' || (e.amount && e.amount > 0));
+    
+    for (let e of validEntries) {
+        if (!e.desc.trim()) { showToast('Description is required for all rows'); return; }
+        if (!e.amount || e.amount <= 0) { showToast('Amount must be greater than 0'); return; }
+    }
+
+    const cashIn  = validEntries.filter(e => e.type === 'Cash In').reduce((s, e) => s + (e.amount || 0), 0);
+    const cashOut = validEntries.filter(e => e.type === 'Cash Out').reduce((s, e) => s + (e.amount || 0), 0);
     const closing = opening + cashIn - cashOut;
 
     const payload = {
@@ -248,7 +267,7 @@ async function saveData() {
         cashIn,
         cashOut,
         closingBalance: closing,
-        entries
+        entries: validEntries
     };
 
     const res = await DB.saveDrawerEntries(date, payload);
@@ -256,7 +275,10 @@ async function saveData() {
         showToast('Error saving data');
         return;
     }
-    showToast('Drawer saved successfully ✓');
+    
+    entries = validEntries; // Update local state to cleaned list
+    renderTable();
+    showToast('Drawer data persisted to MySQL ✓');
 
     const btn = document.getElementById('saveBtn');
     btn.textContent = '✓ Saved Successfully';

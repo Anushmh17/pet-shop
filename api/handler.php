@@ -111,6 +111,49 @@ switch ($action) {
             $upd = $pdo->prepare("UPDATE pets SET qty = qty - ? WHERE id = ?");
             $upd->execute([$s['qty'], $s['petId']]);
 
+            // --- SMART DRAWER INTEGRATION ---
+            $today = date('Y-m-d');
+            $drStmt = $pdo->prepare("SELECT drawer_data FROM drawer WHERE entry_date = ?");
+            $drStmt->execute([$today]);
+            $drawerRow = $drStmt->fetch();
+
+            if ($drawerRow) {
+                $drawerObj = json_decode($drawerRow['drawer_data'], true);
+            } else {
+                // Determine opening from yesterday
+                $yesterday = date('Y-m-d', strtotime('-1 day'));
+                $ysStmt = $pdo->prepare("SELECT drawer_data FROM drawer WHERE entry_date = ?");
+                $ysStmt->execute([$yesterday]);
+                $ysRow = $ysStmt->fetch();
+                $opening = 0;
+                if ($ysRow) {
+                    $ysObj = json_decode($ysRow['drawer_data'], true);
+                    $opening = $ysObj['closingBalance'] ?? 0;
+                }
+                $drawerObj = [
+                    'openingBalance' => (float)$opening,
+                    'cashIn' => 0, 'cashOut' => 0, 'closingBalance' => (float)$opening,
+                    'entries' => []
+                ];
+            }
+
+            // Append Sale to Drawer Entries
+            $drawerObj['entries'][] = [
+                'type' => 'Cash In',
+                'desc' => "Pet Sale - " . ($s['petName'] ?? 'Unknown Pet'),
+                'amount' => (float)$s['total']
+            ];
+
+            // Re-calc drawer totals
+            $drawerObj['cashIn']  = array_reduce($drawerObj['entries'], function($s, $e){ return $s + ($e['type']=='Cash In' ? $e['amount'] : 0); }, 0);
+            $drawerObj['cashOut'] = array_reduce($drawerObj['entries'], function($s, $e){ return $s + ($e['type']=='Cash Out' ? $e['amount'] : 0); }, 0);
+            $drawerObj['closingBalance'] = $drawerObj['openingBalance'] + $drawerObj['cashIn'] - $drawerObj['cashOut'];
+
+            // Save Drawer Back
+            $saveDr = $pdo->prepare("INSERT INTO drawer (entry_date, drawer_data) VALUES (?, ?) ON DUPLICATE KEY UPDATE drawer_data = VALUES(drawer_data)");
+            $saveDr->execute([$today, json_encode($drawerObj)]);
+            // ---------------------------------
+
             $pdo->commit();
             echo json_encode(['success' => true]);
         } catch (PDOException $e) { 

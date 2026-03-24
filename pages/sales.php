@@ -23,17 +23,25 @@
   <!-- Date Range Filter -->
   <div style="margin-bottom: var(--sp-md);">
     <h2 class="section-title" style="margin-bottom: var(--sp-sm);">Sales Range</h2>
-    <div style="display:flex; gap: var(--sp-sm); align-items:center; flex-wrap:wrap;">
+    
+    <!-- Quick Select Pills -->
+    <div style="display:flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch;">
+        <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('thisWeek')">This Week</button>
+        <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('thisMonth')">This Month</button>
+        <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('lastMonth')">Last Month</button>
+    </div>
+
+    <div style="display:flex; gap: var(--sp-sm); align-items:center; flex-wrap:wrap; background: var(--clr-bg); padding: 15px; border-radius: 18px; border: 1px solid var(--clr-border);">
       <div style="flex:1; min-width:130px;">
-        <label style="font-size:.7rem; font-weight:700; color:var(--clr-muted); display:block; margin-bottom:4px;">FROM</label>
+        <label style="font-size:.65rem; font-weight:800; color:var(--clr-muted); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Custom From</label>
         <input type="date" id="dateFrom" class="form-control"
-          style="font-size:.85rem; padding:9px 10px; height:auto; background:#fff;"
+          style="font-size:.85rem; padding:9px 10px; height:auto; background:#fff; border-radius:12px;"
           onchange="applyFilter()" />
       </div>
       <div style="flex:1; min-width:130px;">
-        <label style="font-size:.7rem; font-weight:700; color:var(--clr-muted); display:block; margin-bottom:4px;">TO</label>
+        <label style="font-size:.65rem; font-weight:800; color:var(--clr-muted); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Custom To</label>
         <input type="date" id="dateTo" class="form-control"
-          style="font-size:.85rem; padding:9px 10px; height:auto; background:#fff;"
+          style="font-size:.85rem; padding:9px 10px; height:auto; background:#fff; border-radius:12px;"
           onchange="applyFilter()" />
       </div>
     </div>
@@ -137,15 +145,63 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
-    // Default: start of current month → today
     const now = new Date();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, '0');
     const d = String(now.getDate()).padStart(2, '0');
     document.getElementById('dateFrom').value = `${y}-${m}-01`;
     document.getElementById('dateTo').value   = `${y}-${m}-${d}`;
+    highlightActiveBtn('thisMonth');
     await applyFilter();
 });
+
+function setQuickRange(mode) {
+    const now = new Date();
+    const toYMD = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    let from, to;
+
+    if (mode === 'thisWeek') {
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay()); // Sunday
+        from = toYMD(start);
+        to = toYMD(now);
+    } else if (mode === 'thisMonth') {
+        from = toYMD(new Date(now.getFullYear(), now.getMonth(), 1));
+        to = toYMD(now);
+    } else if (mode === 'lastMonth') {
+        const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const last = new Date(now.getFullYear(), now.getMonth(), 0);
+        from = toYMD(first);
+        to = toYMD(last);
+    }
+
+    document.getElementById('dateFrom').value = from;
+    document.getElementById('dateTo').value   = to;
+    
+    highlightActiveBtn(mode);
+    applyFilter();
+}
+
+function highlightActiveBtn(mode) {
+    const btns = document.querySelectorAll('[onclick^="setQuickRange"]');
+    btns.forEach(b => {
+        if (b.getAttribute('onclick').includes(mode)) {
+            b.style.background = 'var(--clr-primary)';
+            b.style.color = '#fff';
+            b.style.borderColor = 'var(--clr-primary)';
+        } else {
+            b.style.background = '#fff';
+            b.style.color = 'var(--clr-muted)';
+            b.style.borderColor = 'var(--clr-border)';
+        }
+    });
+}
 
 async function getFilteredSales() {
     const fromVal = document.getElementById('dateFrom').value;
@@ -243,8 +299,7 @@ function closeSaleModal(e) {
 
 function updateStats(filteredSales) {
     const totalQty = filteredSales.reduce((sum, s) => sum + s.qty, 0);
-    const totalRev = filteredSales.reduce((sum, s) => sum + s.total, 0);
-    const rangeText = document.getElementById('salesRange').options[document.getElementById('salesRange').selectedIndex].text;
+    const totalRev = filteredSales.reduce((sum, s) => sum + (s.total || 0), 0);
     
     document.getElementById('totalSoldMain').textContent = totalQty;
     document.getElementById('revenueMain').textContent = 'Rs. ' + totalRev.toLocaleString('en-IN');
