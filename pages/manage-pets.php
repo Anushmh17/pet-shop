@@ -128,6 +128,11 @@
       font-weight: 800;
       color: var(--clr-text);
     }
+    .detail-cell .dc-value.link {
+      color: var(--clr-primary);
+      text-decoration: underline;
+      cursor: pointer;
+    }
     .detail-cell.wide { grid-column: 1 / -1; }
     .detail-cell.accent .dc-value { color: var(--clr-primary); }
     .detail-cell.danger .dc-value { color: var(--clr-danger); }
@@ -379,7 +384,18 @@ async function openModal(idx) {
     document.getElementById('modalQty').textContent     = p.qty + ' units';
     document.getElementById('modalCost').textContent    = p.cost > 0 ? 'Rs. ' + parseFloat(p.cost).toLocaleString('en-IN') : '—';
     document.getElementById('modalType').textContent    = p.type || '—';
-    document.getElementById('modalSource').textContent  = p.source || '—';
+    
+    const srcEl = document.getElementById('modalSource');
+    srcEl.textContent = p.source || '—';
+    if (p.source === 'Customer Supplied') {
+        srcEl.classList.add('link');
+        srcEl.title = 'View Customer Profile';
+        srcEl.onclick = () => window.location.href = `customer-supplier.php?pet_id=${p.id}`;
+    } else {
+        srcEl.classList.remove('link');
+        srcEl.onclick = null;
+    }
+
     document.getElementById('modalAlert').textContent   = p.alert_level + ' units';
 
     // Status badge

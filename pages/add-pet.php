@@ -62,7 +62,7 @@
 
       <div class="form-group">
         <label class="form-label" for="petSource">Pet Source *</label>
-        <select id="petSource" class="form-control" required>
+        <select id="petSource" class="form-control" required onchange="toggleCustomerFields()">
           <option value="Dealer Supplied">Dealer Supplied</option>
           <option value="Customer Supplied">Customer Supplied</option>
         </select>
@@ -150,6 +150,50 @@
       <textarea id="petNotes" class="form-control" placeholder="Optional notes…" rows="3" style="resize:vertical;"></textarea>
     </div>
 
+    <!-- ===== CUSTOMER SUPPLIER SECTION (shown when source = Customer) ===== -->
+    <div id="customerSupplierSection" style="display:none;">
+      <div style="display:flex; align-items:center; gap:10px; margin: var(--sp-md) 0 var(--sp-sm);">
+        <div style="flex:1; height:1.5px; background:var(--clr-border);"></div>
+        <span style="font-size:.72rem; font-weight:800; color:var(--clr-primary); text-transform:uppercase; letter-spacing:.6px; white-space:nowrap;">👤 Customer Supplier Details</span>
+        <div style="flex:1; height:1.5px; background:var(--clr-border);"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="csName">Customer Full Name *</label>
+        <input type="text" id="csName" class="form-control" placeholder="e.g. Arun Silva" autocomplete="off" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="csNIC">NIC Number *</label>
+        <input type="text" id="csNIC" class="form-control" placeholder="e.g. 199512345678" autocomplete="off" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">NIC Photo</label>
+        <div style="border:2px dashed var(--clr-border); border-radius:var(--r-md); padding:18px; text-align:center; cursor:pointer;" onclick="document.getElementById('csNICPhoto').click()" id="nicDropZone">
+          <span style="font-size:1.3rem;">🪪</span>
+          <p style="font-size:.76rem; font-weight:700; color:var(--clr-muted); margin-top:4px;">Tap to upload NIC photo</p>
+          <input type="file" id="csNICPhoto" accept="image/*" style="display:none;" onchange="handleNICPhoto(event)" />
+        </div>
+        <div id="nicPhotoPreview" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="csAddress">Address</label>
+        <textarea id="csAddress" class="form-control" placeholder="Customer's home address…" rows="2" style="resize:vertical;"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="csCostPaid">Amount Paid to Customer (Rs.) *</label>
+        <input type="number" id="csCostPaid" class="form-control" min="0" placeholder="0.00" step="0.01" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="csDescription">Description / Remarks</label>
+        <textarea id="csDescription" class="form-control" placeholder="Any additional remarks about the transaction…" rows="2" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+
     <button class="btn btn-primary btn-full" id="submitPetBtn" onclick="savePet()">
       🐾 Save Pet to Inventory
     </button>
@@ -235,7 +279,28 @@ function removeImg(id) {
   uploadedImages = uploadedImages.filter(img => img.id !== id);
 }
 
+let nicPhotoData = null;
+
+function toggleCustomerFields() {
+  const isCustomer = document.getElementById('petSource').value === 'Customer Supplied';
+  const sec = document.getElementById('customerSupplierSection');
+  sec.style.display = isCustomer ? 'block' : 'none';
+}
+
+function handleNICPhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = r => {
+    nicPhotoData = r.target.result;
+    document.getElementById('nicPhotoPreview').innerHTML = `
+      <img src="${nicPhotoData}" style="width:100%; max-height:160px; object-fit:cover; border-radius:10px; border:1.5px solid var(--clr-border);" />`;
+  };
+  reader.readAsDataURL(file);
+}
+
 async function savePet() {
+  const name     = document.getElementById('petNameInput').value.trim();
   const category = document.getElementById('petCategory').value;
   const petVariety = document.getElementById('petVariety').value.trim();
   const source   = document.getElementById('petSource').value;
@@ -246,45 +311,62 @@ async function savePet() {
   const notes    = document.getElementById('petNotes').value.trim();
 
   let price = 0;
-  if(type === 'Single') {
+  if (type === 'Single') {
     price = parseFloat(document.getElementById('petPriceSingle').value) || 0;
   } else {
     price = parseFloat(document.getElementById('petTotalPrice').value) || 0;
   }
 
-  // --- Validation ---
-  if (!name) { showToast('Pet name is required'); return; }
-  if (!category) { showToast('Select a category'); return; }
-  if (qty <= 0) { showToast('Enter a valid quantity'); return; }
-  if (price <= 0) { showToast('Enter a valid price'); return; }
+  // Validation
+  if (!name)     { showToast('Pet name is required'); return; }
+  if (!category) { showToast('Select a category');    return; }
+  if (qty <= 0)  { showToast('Enter a valid quantity'); return; }
+  if (price <= 0){ showToast('Enter a valid price');   return; }
+
+  // Customer supplier validation
+  if (source === 'Customer Supplied') {
+    if (!document.getElementById('csName').value.trim()) { showToast('Enter customer name'); return; }
+    if (!document.getElementById('csNIC').value.trim())  { showToast('Enter customer NIC');  return; }
+    const csCost = parseFloat(document.getElementById('csCostPaid').value);
+    if (!csCost || csCost <= 0) { showToast('Enter amount paid to customer'); return; }
+  }
 
   const newPet = {
     name, category, source, type, qty, price, cost, alertLevel: alertLvl,
-    notes,
-    petVariety: petVariety,
+    notes, petVariety,
     icon: document.getElementById('petPreview').textContent,
     images: uploadedImages.map(img => img.data),
     stopAlert: false
   };
 
   const btn = document.getElementById('submitPetBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Saving…';
+  btn.disabled = true; btn.textContent = '⏳ Saving…';
 
   const res = await DB.addPet(newPet);
-  
+
   if (res.error) {
     showToast('Error saving pet. Check database.');
-    btn.disabled = false;
-    btn.textContent = '🐾 Save Pet to Inventory';
+    btn.disabled = false; btn.textContent = '🐾 Save Pet to Inventory';
     return;
+  }
+
+  // Save customer supplier if applicable
+  if (source === 'Customer Supplied' && res.id) {
+    await DB.saveCustomerSupplier({
+      pet_id:      res.id,
+      full_name:   document.getElementById('csName').value.trim(),
+      nic:         document.getElementById('csNIC').value.trim(),
+      nic_photo:   nicPhotoData || null,
+      address:     document.getElementById('csAddress').value.trim(),
+      cost_paid:   parseFloat(document.getElementById('csCostPaid').value) || 0,
+      description: document.getElementById('csDescription').value.trim()
+    });
   }
 
   setTimeout(() => {
     document.getElementById('successName').textContent = name;
     document.getElementById('successModal').classList.add('open');
-    btn.disabled = false;
-    btn.textContent = '🐾 Save Pet to Inventory';
+    btn.disabled = false; btn.textContent = '🐾 Save Pet to Inventory';
   }, 400);
 }
 
@@ -345,6 +427,11 @@ function resetForm() {
   togglePriceFields();
   document.getElementById('varietyGroup').style.display = 'none';
   document.getElementById('petVariety').value = '';
+  // Reset customer supplier fields
+  document.getElementById('customerSupplierSection').style.display = 'none';
+  ['csName','csNIC','csAddress','csCostPaid','csDescription'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nicPhotoPreview').innerHTML = '';
+  nicPhotoData = null;
   document.getElementById('petNameInput').focus();
 }
 

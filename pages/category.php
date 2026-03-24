@@ -138,7 +138,8 @@
     }
     .supplier-banner .sb-icon { font-size: 1.6rem; }
     .supplier-banner .sb-label { font-size: .66rem; font-weight: 800; color: var(--clr-muted); text-transform: uppercase; letter-spacing: .5px; }
-    .supplier-banner .sb-value { font-size: .92rem; font-weight: 800; color: var(--clr-primary); }
+    .supplier-banner .sb-value { font-size: .92rem; font-weight: 800; color: var(--clr-primary); cursor: default; }
+    .supplier-banner .sb-value.link { text-decoration: underline; cursor: pointer; }
     .det-grid {
       display: grid; grid-template-columns: 1fr 1fr;
       gap: 8px; margin: 12px 0 8px;
@@ -399,7 +400,18 @@ async function openModal(petId) {
   document.getElementById('modalIcon').textContent    = p.icon || '🐾';
   document.getElementById('modalName').textContent    = p.name;
   document.getElementById('modalSub').textContent     = (p.category || '').charAt(0).toUpperCase() + (p.category || '').slice(1) + (p.pet_variety ? ' · ' + p.pet_variety : '');
-  document.getElementById('modalSupplier').textContent = p.source || 'Not specified';
+  
+  const supEl = document.getElementById('modalSupplier');
+  supEl.textContent = p.source || 'Not specified';
+  if (p.source === 'Customer Supplied') {
+    supEl.classList.add('link');
+    supEl.title = 'View Customer Profile';
+    supEl.onclick = () => window.location.href = `customer-supplier.php?pet_id=${p.id}`;
+  } else {
+    supEl.classList.remove('link');
+    supEl.onclick = null;
+  }
+
   document.getElementById('modalPrice').textContent   = 'Rs. ' + parseFloat(p.price).toLocaleString('en-IN');
   document.getElementById('modalQty').textContent     = p.qty + ' units';
   document.getElementById('modalCost').textContent    = parseFloat(p.cost) > 0 ? 'Rs. ' + parseFloat(p.cost).toLocaleString('en-IN') : '—';

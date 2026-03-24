@@ -31,6 +31,20 @@ CREATE TABLE IF NOT EXISTS pet_images (
     FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
 );
 
+-- 3b. CUSTOMER SUPPLIERS TABLE: Details of customers who supply pets
+CREATE TABLE IF NOT EXISTS customer_suppliers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    pet_id INT UNIQUE,                -- one supplier per pet
+    full_name VARCHAR(255),
+    nic VARCHAR(50),
+    nic_photo LONGTEXT,               -- Base64 NIC image
+    address TEXT,
+    cost_paid DECIMAL(10,2),          -- amount paid to customer
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
+);
+
 -- 4. SALES TABLE: Transactions logs
 CREATE TABLE IF NOT EXISTS sales (
     id INT AUTO_INCREMENT PRIMARY KEY,

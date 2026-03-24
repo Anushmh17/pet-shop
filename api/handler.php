@@ -32,6 +32,39 @@ switch ($action) {
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 
+    case 'getCustomerSupplier':
+        try {
+            $petId = (int)($_GET['pet_id'] ?? 0);
+            if (!$petId) { echo json_encode(null); break; }
+            $stmt = $pdo->prepare("SELECT * FROM customer_suppliers WHERE pet_id = ?");
+            $stmt->execute([$petId]);
+            $row = $stmt->fetch();
+            echo json_encode($row ?: null);
+        } catch (PDOException $e) { respondError($e->getMessage()); }
+        break;
+
+    case 'saveCustomerSupplier':
+        try {
+            $d = $input;
+            $sql = "INSERT INTO customer_suppliers (pet_id, full_name, nic, nic_photo, address, cost_paid, description)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        full_name=VALUES(full_name), nic=VALUES(nic), nic_photo=VALUES(nic_photo),
+                        address=VALUES(address), cost_paid=VALUES(cost_paid), description=VALUES(description)";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                (int)$d['pet_id'],
+                $d['full_name'] ?? '',
+                $d['nic']       ?? '',
+                $d['nic_photo'] ?? null,
+                $d['address']   ?? '',
+                (float)($d['cost_paid'] ?? 0),
+                $d['description'] ?? ''
+            ]);
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) { respondError($e->getMessage()); }
+        break;
+
     case 'savePet':
         try {
             $p = $input;

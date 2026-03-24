@@ -44,6 +44,14 @@ const DB = {
     return await this.callAPI('getPetImages', 'GET', { pet_id: petId });
   },
 
+  async getCustomerSupplier(petId) {
+    return await this.callAPI('getCustomerSupplier', 'GET', { pet_id: petId });
+  },
+
+  async saveCustomerSupplier(data) {
+    return await this.callAPI('saveCustomerSupplier', 'POST', data);
+  },
+
   async addPet(pet) {
     return await this.callAPI('savePet', 'POST', pet);
   },
