@@ -86,10 +86,10 @@
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     updateTodayDate();
-    loadPetList();
-    renderTodaySales();
+    await loadPetList();
+    await renderTodaySales();
 });
 
 function updateTodayDate() {
@@ -98,22 +98,23 @@ function updateTodayDate() {
     d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-function loadPetList() {
+async function loadPetList() {
     const sel = document.getElementById('selectPet');
-    const pets = DB.getPets().filter(p => p.qty > 0);
-    sel.innerHTML += pets.map(p => `<option value="${p.id}">${p.name} (In Stock: ${p.qty})</option>`).join('');
+    const pets = await DB.getPets();
+    const available = pets.filter(p => p.qty > 0);
+    sel.innerHTML += available.map(p => `<option value="${p.id}">${p.name} (In Stock: ${p.qty})</option>`).join('');
 }
 
-function autoFillPrice() {
+async function autoFillPrice() {
     const id = parseInt(document.getElementById('selectPet').value);
-    const pets = DB.getPets();
+    const pets = await DB.getPets();
     const pet = pets.find(p => p.id === id);
     if (pet) {
         document.getElementById('salePrice').value = pet.price;
     }
 }
 
-function recordSale() {
+async function recordSale() {
     const pId   = parseInt(document.getElementById('selectPet').value);
     const qty   = parseInt(document.getElementById('saleQty').value) || 0;
     const price = parseFloat(document.getElementById('salePrice').value) || 0;
@@ -121,7 +122,8 @@ function recordSale() {
     if(!pId) { showToast('Select a pet'); return; }
     if(qty <= 0) { showToast('Enter valid quantity'); return; }
 
-    const pet = DB.getPets().find(p => p.id === pId);
+    const pets = await DB.getPets();
+    const pet = pets.find(p => p.id === pId);
     if(pet.qty < qty) { showToast('Not enough stock! Available: ' + pet.qty); return; }
 
     const sale = {
@@ -133,23 +135,27 @@ function recordSale() {
         total: qty * price
     };
 
-    DB.addSale(sale);
+    const res = await DB.addSale(sale);
+    if (res.error) {
+        showToast('Error recording sale');
+        return;
+    }
     showToast('Sale recorded successfully ✓');
     
     // Refresh
-    renderTodaySales();
+    await renderTodaySales();
     
     // Clear & Re-load List (to update quantities)
     document.getElementById('selectPet').innerHTML = '<option value="">— Select Pet —</option>';
-    loadPetList();
+    await loadPetList();
     document.getElementById('saleQty').value = '1';
     document.getElementById('salePrice').value = '';
 }
 
-function renderTodaySales() {
+async function renderTodaySales() {
     const list = document.getElementById('todaySalesList');
     const empty= document.getElementById('emptyToday');
-    const sales = DB.getTodaySales();
+    const sales = await DB.getTodaySales();
 
     if (sales.length === 0) {
         list.innerHTML = '';

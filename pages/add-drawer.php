@@ -94,15 +94,16 @@
 <script>
 let entries = [];
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('drawerDate').value = today;
-    loadEntries();
+    await loadEntries();
 });
 
-function loadEntries() {
+async function loadEntries() {
     const date = document.getElementById('drawerDate').value;
-    entries = DB.getDrawerEntries(date);
+    const res = await DB.getDrawerEntries(date);
+    entries = res || [];
     renderTable();
 }
 
@@ -174,9 +175,13 @@ function removeRow(idx) {
     renderTable();
 }
 
-function saveData() {
+async function saveData() {
     const date = document.getElementById('drawerDate').value;
-    DB.saveDrawerEntries(date, entries);
+    const res = await DB.saveDrawerEntries(date, entries);
+    if (res.error) {
+        showToast('Error saving data');
+        return;
+    }
     showToast('Drawer data saved successfully ✓');
     
     // Pulse effect

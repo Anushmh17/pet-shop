@@ -225,7 +225,7 @@ function removeImg(id) {
   uploadedImages = uploadedImages.filter(img => img.id !== id);
 }
 
-function savePet() {
+async function savePet() {
   const name     = document.getElementById('petNameInput').value.trim();
   const category = document.getElementById('petCategory').value;
   const source   = document.getElementById('petSource').value;
@@ -248,9 +248,7 @@ function savePet() {
   if (qty <= 0) { showToast('Enter a valid quantity'); return; }
   if (price <= 0) { showToast('Enter a valid price'); return; }
 
-  const pets = DB.getPets();
   const newPet = {
-    id: Date.now(),
     name, category, source, type, qty, price, cost, alertLevel: alertLvl,
     notes,
     icon: document.getElementById('petPreview').textContent,
@@ -258,19 +256,25 @@ function savePet() {
     stopAlert: false
   };
 
-  pets.push(newPet);
-  DB.savePets(pets);
-
   const btn = document.getElementById('submitPetBtn');
   btn.disabled = true;
   btn.textContent = '⏳ Saving…';
+
+  const res = await DB.addPet(newPet);
+  
+  if (res.error) {
+    showToast('Error saving pet. Check database.');
+    btn.disabled = false;
+    btn.textContent = '🐾 Save Pet to Inventory';
+    return;
+  }
 
   setTimeout(() => {
     document.getElementById('successName').textContent = name;
     document.getElementById('successModal').classList.add('open');
     btn.disabled = false;
     btn.textContent = '🐾 Save Pet to Inventory';
-  }, 600);
+  }, 400);
 }
 
 function resetForm() {

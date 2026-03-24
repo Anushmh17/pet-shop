@@ -89,10 +89,10 @@
 
 <script>
 /* ---- UI Initialization ---- */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     updateTodayDate();
-    loadStockAlerts();
-    loadBestSellingChart();
+    await loadStockAlerts();
+    await loadBestSellingChart();
 });
 
 function updateTodayDate() {
@@ -102,9 +102,9 @@ function updateTodayDate() {
 }
 
 /* ---- Stock Alert Logic ---- */
-function loadStockAlerts() {
+async function loadStockAlerts() {
     const list = document.getElementById('stockAlertList');
-    const pets = DB.getPets();
+    const pets = await DB.getPets();
     const alertPets = pets.filter(p => !p.stopAlert && p.qty < (p.alertLevel || 10));
 
     if (alertPets.length === 0) {
@@ -145,39 +145,30 @@ function loadStockAlerts() {
     `;
 }
 
-function stopAlert(petId) {
+async function stopAlert(petId) {
   const pId = parseInt(petId);
-  const pets = DB.getPets();
-  const pet = pets.find(p => p.id === pId);
-  if (pet) {
-    pet.stopAlert = true;
-    DB.savePets(pets);
-    showToast('Alert stopped for ' + pet.name);
-    
-    // Animate out
-    const card = document.getElementById('alert-' + petId);
-    card.classList.add('dismissed');
-    setTimeout(() => {
-        card.style.opacity = '0';
-        card.style.maxHeight = '0';
-        card.style.margin = '0';
-        setTimeout(() => {
-            card.remove();
-            loadStockAlerts();
-        }, 400);
-    }, 200);
+  await DB.toggleAlert(pId, true);
+  showToast('Alert stopped');
+  
+  const card = document.getElementById('alert-' + petId);
+  if (card) {
+      card.style.opacity = '0';
+      setTimeout(() => {
+          card.remove();
+          loadStockAlerts();
+      }, 300);
   }
 }
 
 /* ---- Best Selling Chart Logic ---- */
-function loadBestSellingChart() {
+async function loadBestSellingChart() {
     const chart  = document.getElementById('barChart');
     const labels = document.getElementById('barLabels');
     const wrap   = document.getElementById('barChartWrap');
 
     // Build full pet list with their sales qty
-    const allPets   = DB.getPets();
-    const salesData = DB.getSalesByPet(); // [{name, qty}]
+    const allPets   = await DB.getPets();
+    const salesData = await DB.getSalesByPet(); // [{name, qty}]
     const salesMap  = {};
     salesData.forEach(s => salesMap[s.name] = s.qty);
 

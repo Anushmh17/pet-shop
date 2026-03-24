@@ -1,48 +1,58 @@
 /**
  * Pet Shop Storage Manager
- * Simple persistence using localStorage
+ * Switched from localStorage to MySQL Backend (via PHP API)
  */
 
 const DB = {
-  // --- PETS ---
-  getPets: () => JSON.parse(localStorage.getItem('ps_pets')) || [
-    { id: 1, name: 'Golden Retriever', category: 'dog', source: 'Dealer Supplied', type: 'Single', qty: 2, price: 15000, cost: 12000, icon: '🐶', alertLevel: 5, stopAlert: false },
-    { id: 2, name: 'Persian Cat', category: 'cat', source: 'Customer Supplied', type: 'Pair/Couple', qty: 1, price: 8500, cost: 6000, icon: '🐱', alertLevel: 5, stopAlert: false },
-    { id: 3, name: 'Budgerigar', category: 'bird', source: 'Dealer Supplied', type: 'Single', qty: 12, price: 500, cost: 250, icon: '🦜', alertLevel: 5, stopAlert: false },
-  ],
+  // --- BASE FETCH WRAPPER ---
+  async callAPI(action, method = 'GET', data = null) {
+    try {
+      const options = {
+        method: method,
+        headers: { 'Content-Type': 'application/json' }
+      };
+      if (data) options.body = JSON.stringify(data);
 
-  savePets: (pets) => localStorage.setItem('ps_pets', JSON.stringify(pets)),
-
-  updateStock: (petId, qtyChange) => {
-    const pets = DB.getPets();
-    const pet = pets.find(p => p.id === petId);
-    if (pet) {
-      pet.qty += qtyChange;
-      DB.savePets(pets);
+      const url = `../api/handler.php?action=${action}` + (method === 'GET' && data?.date ? `&date=${data.date}` : '');
+      const resp = await fetch(url, options);
+      if (!resp.ok) throw new Error('API Error');
+      return await resp.json();
+    } catch (e) {
+      console.error('Database Error:', e);
+      return method === 'GET' ? [] : { success: false };
     }
   },
 
+  // --- PETS ---
+  async getPets() {
+    return await this.callAPI('getPets');
+  },
+
+  async addPet(pet) {
+    return await this.callAPI('savePet', 'POST', pet);
+  },
+
+  async toggleAlert(petId, isStopped) {
+    return await this.callAPI('toggleAlert', 'POST', { id: petId, stop: isStopped });
+  },
+
   // --- SALES ---
-  getSales: () => JSON.parse(localStorage.getItem('ps_sales')) || [],
-
-  saveSales: (sales) => localStorage.setItem('ps_sales', JSON.stringify(sales)),
-
-  addSale: (sale) => {
-    const sales = DB.getSales();
-    sale.id = Date.now();
-    sale.date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    sales.unshift(sale);
-    DB.saveSales(sales);
-    DB.updateStock(sale.petId, -sale.qty);
+  async getSales() {
+    return await this.callAPI('getSales');
   },
 
-  getTodaySales: () => {
+  async addSale(sale) {
+    return await this.callAPI('addSale', 'POST', sale);
+  },
+
+  async getTodaySales() {
+    const all = await this.getSales();
     const today = new Date().toISOString().split('T')[0];
-    return DB.getSales().filter(s => s.date === today);
+    return all.filter(s => s.date === today);
   },
 
-  getSalesByPet: () => {
-    const sales = DB.getSales();
+  async getSalesByPet() {
+    const sales = await this.getSales();
     const petMap = {};
     sales.forEach(s => {
       petMap[s.petName] = (petMap[s.petName] || 0) + s.qty;
@@ -52,14 +62,11 @@ const DB = {
   },
 
   // --- DRAWER ---
-  getDrawerEntries: (date) => {
-    const allEntries = JSON.parse(localStorage.getItem('ps_drawer')) || {};
-    return allEntries[date] || [];
+  async getDrawerEntries(date) {
+    return await this.callAPI('getDrawer', 'GET', { date });
   },
 
-  saveDrawerEntries: (date, entries) => {
-    const allEntries = JSON.parse(localStorage.getItem('ps_drawer')) || {};
-    allEntries[date] = entries;
-    localStorage.setItem('ps_drawer', JSON.stringify(allEntries));
+  async saveDrawerEntries(date, entries) {
+    return await this.callAPI('saveDrawer', 'POST', { date, data: entries });
   }
 };

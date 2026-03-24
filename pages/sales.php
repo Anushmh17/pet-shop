@@ -129,13 +129,13 @@
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    applyFilter();
+document.addEventListener('DOMContentLoaded', async () => {
+    await applyFilter();
 });
 
-function getFilteredSales() {
+async function getFilteredSales() {
     const range = document.getElementById('salesRange').value;
-    const allSales = DB.getSales();
+    const allSales = await DB.getSales();
     const now = new Date();
     
     // Helper to get local YYYY-MM-DD
@@ -166,8 +166,8 @@ function getFilteredSales() {
     });
 }
 
-function applyFilter() {
-    const sales = getFilteredSales();
+async function applyFilter() {
+    const sales = await getFilteredSales();
     renderHistory(sales);
     updateStats(sales);
 }
@@ -200,11 +200,12 @@ function renderHistory(sales) {
     window._currentSales = sales;
 }
 
-function openSaleModal(idx) {
+async function openSaleModal(idx) {
     const s = window._currentSales[idx];
     if (!s) return;
 
-    const pet = DB.getPets().find(p => p.id === s.petId);
+    const pets = await DB.getPets();
+    const pet = pets.find(p => p.id === s.petId);
 
     // Images
     const imgBox = document.getElementById('modalImages');
