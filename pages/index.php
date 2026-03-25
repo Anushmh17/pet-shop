@@ -17,29 +17,74 @@ if (!isset($_SESSION['admin_auth'])) {
   <style>
     /* Category action card — full width below grid */
     .card-category .card-icon { background: #fef3e2; color: #e67e22; }
-    .profile-link {
-        position: absolute; top: 0; right: 0; width: 50px; height: 50px;
-        background: white; border-radius: 50%; box-shadow: var(--shadow-sm);
+    /* Notification Bell & Badges */
+    .nav-actions {
+        position: absolute; top: 0; right: 0; 
+        display: flex; align-items: center; gap: 10px;
+    }
+    .notif-bell {
+        width: 44px; height: 44px; background: white; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.4rem; border: 1.5px solid var(--clr-border);
+        font-size: 1.3rem; border: 1.5px solid var(--clr-border);
+        box-shadow: var(--shadow-sm); position: relative;
+        cursor: pointer; transition: transform .15s;
     }
-    .payment-alert {
-      background: #fff8e1;
-      border: 1.5px solid #ffca28;
-      border-radius: var(--r-md);
-      padding: 12px 15px;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      animation: pulse 2s infinite;
+    .notif-bell:active { transform: scale(.92); }
+    .notif-badge {
+        position: absolute; top: -2px; right: -2px;
+        background: #ff4757; color: white; font-size: 0.65rem; font-weight: 800;
+        min-width: 18px; height: 18px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        padding: 0 4px; border: 2px solid white;
+        display: none; /* Hidden by default */
     }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.02); }
-      100% { transform: scale(1); }
+    .card-badge {
+        position: absolute; top: 12px; right: 12px;
+        background: #f1c40f; color: #92400e; font-size: 0.6rem;
+        font-weight: 800; padding: 2px 8px; border-radius: 50px;
+        display: none; /* Hidden by default */
     }
-    .overdue { color: var(--clr-danger) !important; font-weight: 800; }
+    .profile-link {
+        width: 44px; height: 44px; background: white; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem; border: 1.5px solid var(--clr-border);
+        box-shadow: var(--shadow-sm); 
+    }
+
+    /* Notification Popup Dropdown */
+    .notif-popup {
+        display: none; position: absolute; top: 55px; right: 0; width: 280px;
+        background: white; border-radius: 20px; border: 1.5px solid var(--clr-border);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.12); z-index: 2005; overflow: hidden;
+        animation: dropIn .2s ease-out;
+    }
+    .notif-popup.open { display: block; }
+    @keyframes dropIn { from { opacity:0; transform: translateY(-10px); } to { opacity:1; transform: translateY(0); } }
+    
+    .popup-header {
+        padding: 12px 15px; background: var(--clr-bg); border-bottom: 1.5px solid var(--clr-border);
+        font-size: .75rem; font-weight: 800; color: var(--clr-muted); text-transform: uppercase;
+    }
+    .popup-list { max-height: 350px; overflow-y: auto; }
+    .popup-group-label {
+        font-size: .62rem; font-weight: 800; color: var(--clr-muted);
+        padding: 5px 15px; background: var(--clr-bg); letter-spacing: .4px;
+    }
+    .popup-item {
+        display: flex; align-items: center; gap: 12px;
+        padding: 10px 15px; border-bottom: 1px solid var(--clr-bg);
+        cursor: pointer; transition: background .15s;
+    }
+    .popup-item:last-child { border-bottom: none; }
+    .popup-item:active { background: var(--clr-bg); }
+    .popup-icon { font-size: 1.2rem; }
+    .popup-info { flex: 1; min-width: 0; }
+    .popup-name { font-size: .82rem; font-weight: 800; color: var(--clr-text); }
+    .popup-detail { font-size: .68rem; font-weight: 600; color: var(--clr-muted); }
+    .popup-meta {
+        font-size: .6rem; font-weight: 800; padding: 2px 6px; border-radius: 6px;
+        background: var(--clr-bg); color: var(--clr-muted); margin-top: 2px; display: inline-block;
+    }
   </style>
 </head>
 <body id="page-body">
@@ -52,14 +97,26 @@ if (!isset($_SESSION['admin_auth'])) {
 
   <!-- Greeting -->
   <div class="greeting" style="position:relative;">
-    <a href="profile.php" class="profile-link" aria-label="Admin Profile">👤</a>
+    <div class="nav-actions">
+      <div class="notif-bell" id="topBell" onclick="toggleNotifPopup(event)">
+        🔔<span class="notif-badge" id="bellCount">0</span>
+      </div>
+      <a href="profile.php" class="profile-link" aria-label="Admin Profile">👤</a>
+      
+      <!-- Notification Popup -->
+      <div class="notif-popup" id="notifPopup">
+        <div class="popup-header">Notifications</div>
+        <div class="popup-list" id="popupList"></div>
+      </div>
+    </div>
     <div class="greeting-label">Welcome back</div>
     <div class="greeting-name" id="greetText">Good Day,<br>Owner 👋</div>
     <div class="greeting-sub" id="todayDate"></div>
   </div>
 
-  <!-- Notification Banner -->
-  <div id="notif-area"></div>
+  <div id="notif-area" style="display:none;"></div>
+
+  <!-- Notification Banner (REMOVED) -->
 
   <!-- ===== ACTION GRID 2×2 ===== -->
   <div class="action-grid" role="navigation" aria-label="Main Actions">
@@ -83,9 +140,10 @@ if (!isset($_SESSION['admin_auth'])) {
       <div class="card-icon" style="background: #efecfd; color: #6c5ce7;">🚚</div>
       <span class="card-label">Suppliers</span>
     </a>
-    <a href="payments.php" class="action-card" id="btn-payments" aria-label="Payments" style="border-top-color: #f1c40f;">
+    <a href="payments.php" class="action-card" id="btn-payments" aria-label="Payments" style="border-top-color: #f1c40f; position:relative;">
       <div class="card-icon" style="background: #fff9e6; color: #f1c40f;">💰</div>
       <span class="card-label">Payments</span>
+      <span class="card-badge" id="payCount">0</span>
     </a>
   </div>
 
@@ -163,7 +221,7 @@ window.addEventListener('touchend', async () => {
 
 async function initDashboard() {
   updateTodayDate();
-  await loadPaymentNotifications();
+  await updateNotificationSignals();
   await loadStockAlerts();
   await loadBestSellingChart();
 }
@@ -176,35 +234,102 @@ function updateTodayDate() {
   document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 }
 
-async function loadPaymentNotifications() {
-  const notifArea = document.getElementById('notif-area');
+async function updateNotificationSignals() {
   const pets = await DB.getPets();
-  const pending = pets.filter(p => p.payment_status === 'Pending');
-  
-  notifArea.innerHTML = '';
-  if (pending.length === 0) return;
-
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
+  
+  // 1. Pending Payments
+  const pending = pets.filter(p => p.payment_status === 'Pending');
+  const payBadge = document.getElementById('payCount');
+  if (pending.length > 0) {
+    payBadge.textContent = `${pending.length} PENDING`;
+    payBadge.style.display = 'block';
+  } else {
+    payBadge.style.display = 'none';
+  }
 
-  pending.forEach(p => {
-    const isOverdue = p.due_date && p.due_date < todayStr;
-    const dueDateText = p.due_date ? new Date(p.due_date).toLocaleDateString('en-IN', {day:'numeric', month:'short'}) : '—';
-    
-    const alertDiv = document.createElement('div');
-    alertDiv.className = 'payment-alert';
-    alertDiv.style.cursor = 'pointer';
-    alertDiv.onclick = () => window.location.href = 'payments.php';
-    alertDiv.innerHTML = `
-      <span style="font-size:1.5rem;">🔔</span>
-      <div style="flex:1;">
-        <div style="font-size:.85rem; font-weight:800; color:#856404;">Pending payment: ${p.name} from ${p.supplier_name || 'Individual'}</div>
-        <div style="font-size:.7rem; font-weight:600; color:#856404; opacity:0.8;">Due by ${dueDateText} ${isOverdue ? '(OVERDUE)' : ''}</div>
-      </div>
-    `;
-    notifArea.appendChild(alertDiv);
-  });
+  // 2. Low Stock Alerts
+  const stockAlerts = pets.filter(p => !p.stop_alert && parseInt(p.qty) <= parseInt(p.alert_level));
+  
+  // 3. Combined Top Badge
+  const total = pending.length + stockAlerts.length;
+  const bellBadge = document.getElementById('bellCount');
+  if (total > 0) {
+    bellBadge.textContent = total;
+    bellBadge.style.display = 'flex';
+  } else {
+    bellBadge.style.display = 'none';
+  }
+
+  // 4. Update Popup HTML
+  const list = document.getElementById('popupList');
+  if (total === 0) {
+    list.innerHTML = '<div style="padding:40px 15px; text-align:center; font-size:.75rem; color:var(--clr-muted); font-weight:600;">Inventory looks healthy! 🎉</div>';
+    return;
+  }
+
+  let html = '';
+  
+  // Group 1: Payments
+  if (pending.length > 0) {
+    html += `<div class="popup-group-label">PAYMENT REMINDERS</div>`;
+    pending.forEach(p => {
+        const isOverdue = p.due_date && p.due_date < todayStr;
+        const dateText = p.due_date ? new Date(p.due_date).toLocaleDateString('en-IN', {day:'numeric', month:'short'}) : '—';
+        html += `
+            <div class="popup-item" onclick="window.location.href='payments.php'">
+                <div class="popup-icon">${isOverdue ? '⚠️' : '🔔'}</div>
+                <div class="popup-info">
+                    <div class="popup-name">${p.name}</div>
+                    <div class="popup-detail">from ${p.supplier_name || 'Individual'}</div>
+                    <div class="popup-meta" style="${isOverdue ? 'color:#b91c1c; background:#fee2e2;' : ''}">
+                        ${isOverdue ? 'OVERDUE' : 'Due ' + dateText}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+  }
+
+  // Group 2: Stock
+  if (stockAlerts.length > 0) {
+    html += `<div class="popup-group-label">LOW STOCK ALERTS</div>`;
+    stockAlerts.forEach(p => {
+        html += `
+            <div class="popup-item" onclick="window.location.href='manage-pets.php'">
+                <div class="popup-icon">📦</div>
+                <div class="popup-info">
+                    <div class="popup-name">${p.name}</div>
+                    <div class="popup-detail">${p.category.toUpperCase()} • Qty: ${p.qty}</div>
+                    <div class="popup-meta" style="color:#0369a1; background:#e0f2fe;">Restock Needed</div>
+                </div>
+            </div>
+        `;
+    });
+  }
+
+  list.innerHTML = html;
 }
+
+function toggleNotifPopup(e) {
+  if (e) e.stopPropagation();
+  const p = document.getElementById('notifPopup');
+  p.classList.toggle('open');
+  
+  if (p.classList.contains('open')) {
+    const closer = (ev) => {
+        if (!p.contains(ev.target) && !document.getElementById('topBell').contains(ev.target)) {
+            p.classList.remove('open');
+            window.removeEventListener('click', closer);
+        }
+    };
+    window.addEventListener('click', closer);
+  }
+}
+
+// Keeping a legacy empty function to prevent errors if called elsewhere
+async function loadPaymentNotifications() { document.getElementById('notif-area').innerHTML = ''; }
 
 async function loadStockAlerts() {
   const list = document.getElementById('stockAlertsList');
