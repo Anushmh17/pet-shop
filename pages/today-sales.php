@@ -176,15 +176,30 @@ async function renderTodaySales() {
     }
 
     empty.style.display = 'none';
-    list.innerHTML = sales.map(s => `
-      <div class="sale-item">
-        <div class="item-info" style="padding-left: 5px;">
-          <div class="item-name">${s.petName}</div>
-          <div class="item-meta">${s.qty} unit${s.qty > 1 ? 's' : ''} &middot; @Rs. ${s.price.toLocaleString('en-IN')}</div>
+    list.innerHTML = sales.map(s => {
+      const imgHtml = s.primaryImage 
+        ? `<img src="${s.primaryImage}" style="width:100%; height:100%; object-fit:cover;" />`
+        : `<span style="font-size:1rem; color:var(--clr-muted); opacity:0.8;">📸</span>`;
+
+      return `
+        <div class="sale-item" style="padding: 12px 16px; align-items: center; display: flex; gap: 14px; margin-bottom: 10px; border-radius: 12px;">
+          <div style="width: 46px; height: 46px; border-radius: 12px; background: var(--clr-bg); border: 2px solid var(--clr-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+            ${imgHtml}
+          </div>
+
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div style="font-weight:800; font-size:1.02rem; color:var(--clr-text); line-height:1.2;">${s.petName}</div>
+              <div style="font-size:.62rem; font-weight:800; color:var(--clr-primary); background:var(--clr-primary-lt); padding:2px 8px; border-radius:50px; text-transform:uppercase; letter-spacing:0.4px;">${s.category}</div>
+            </div>
+            <div style="font-size:.78rem; font-weight:700; color:var(--clr-muted); margin-top:3px;">
+              Qty: ${s.qty} &middot; @Rs. ${s.price.toLocaleString('en-IN')}
+            </div>
+            <div style="font-weight:800; color:var(--clr-text); font-size: 1.05rem; margin-top: 5px;">Rs. ${s.total.toLocaleString('en-IN')}</div>
+          </div>
         </div>
-        <div class="item-amt" style="font-weight: 800; color: var(--clr-text);">Rs. ${s.total.toLocaleString('en-IN')}</div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     updateStats(sales);
 }

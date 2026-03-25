@@ -35,6 +35,7 @@
     
     <!-- Quick Select Pills -->
     <div style="display:flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch;">
+        <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('today')">Today</button>
         <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('thisWeek')">This Week</button>
         <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('thisMonth')">This Month</button>
         <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('lastMonth')">Last Month</button>
@@ -160,14 +161,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    document.getElementById('dateFrom').value = `${y}-${m}-01`;
-    document.getElementById('dateTo').value   = `${y}-${m}-${d}`;
-    highlightActiveBtn('thisMonth');
-    await applyFilter();
+    setQuickRange('today');
 });
 
 function setQuickRange(mode) {
@@ -181,7 +175,10 @@ function setQuickRange(mode) {
 
     let from, to;
 
-    if (mode === 'thisWeek') {
+    if (mode === 'today') {
+        from = toYMD(now);
+        to = toYMD(now);
+    } else if (mode === 'thisWeek') {
         const start = new Date(now);
         start.setDate(now.getDate() - now.getDay()); // Sunday
         from = toYMD(start);
@@ -241,27 +238,39 @@ async function applyFilter() {
 
 function renderHistory(sales) {
     const list = document.getElementById('salesList');
-
     if (sales.length === 0) {
         list.innerHTML = '';
-        document.getElementById('noSales').style.display = '';
+        document.getElementById('noSales').style.display = 'block';
         return;
     }
-
     document.getElementById('noSales').style.display = 'none';
-    list.innerHTML = sales.map((s, idx) => `
-      <div class="sale-item" onclick="openSaleModal(${idx})" style="cursor:pointer; transition:transform .15s; padding-left: 18px;" 
-           onmousedown="this.style.transform='scale(.97)'" onmouseup="this.style.transform=''">
-        <div class="item-info">
-          <div class="item-name">${s.petName}</div>
-          <div class="item-meta">${s.qty} unit${s.qty > 1 ? 's' : ''} &middot; ${formatDate(s.date)}</div>
+    list.innerHTML = sales.map((s, idx) => {
+      const imgHtml = s.primaryImage 
+        ? `<img src="${s.primaryImage}" style="width:100%; height:100%; object-fit:cover;" />`
+        : `<span style="font-size:1.1rem; color:var(--clr-muted);">📸</span>`;
+
+      return `
+        <div class="sale-item" onclick="openSaleModal(${idx})" style="cursor:pointer; transition:transform .15s; padding: 12px 16px; align-items: center; display: flex; gap: 14px; margin-bottom: 10px;" 
+             onmousedown="this.style.transform='scale(.98)'" onmouseup="this.style.transform=''">
+          
+          <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--clr-bg); border: 2px solid var(--clr-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+            ${imgHtml}
+          </div>
+
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div style="font-weight:800; font-size:1.02rem; color:var(--clr-text); line-height:1.2;">${s.petName}</div>
+              <div style="font-size:.65rem; font-weight:800; color:var(--clr-primary); background:var(--clr-primary-lt); padding:3px 10px; border-radius:50px; text-transform:uppercase; letter-spacing:0.4px;">${s.category}</div>
+            </div>
+            <div style="font-size:.78rem; font-weight:700; color:var(--clr-muted); margin-top:3px;">
+              ${s.qty} unit${s.qty > 1 ? 's' : ''} &middot; ${formatDate(s.date)}
+            </div>
+            <div style="font-weight:800; color:var(--clr-text); font-size: 1.05rem; margin-top: 5px;">Rs. ${s.total.toLocaleString('en-IN')}</div>
+          </div>
+          <div style="color:var(--clr-border); font-size:1.1rem; flex-shrink:0;">›</div>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <div class="item-amt" style="font-weight: 800; color: var(--clr-text);">Rs. ${s.total.toLocaleString('en-IN')}</div>
-          <span style="color:var(--clr-muted); font-size:.8rem;">›</span>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
     // store filtered sales for modal lookup
     window._currentSales = sales;
 }
@@ -292,7 +301,7 @@ async function openSaleModal(idx) {
     }
     document.getElementById('modalPetName').textContent     = s.petName;
     document.getElementById('modalDate').textContent        = '📅 ' + new Date(s.date).toLocaleDateString('en-US', {weekday:'short', day:'numeric', month:'long', year:'numeric'});
-    document.getElementById('modalQty').textContent         = s.qty + (s.qty > 1 ? ' units' : ' unit');
+    document.getElementById('modalQty').textContent         = (s.category ? s.category.toUpperCase() + ' • ' : '') + s.qty + (s.qty > 1 ? ' units' : ' unit');
     document.getElementById('modalUnitPrice').textContent   = 'Rs. ' + (s.price || (s.total / s.qty)).toLocaleString('en-IN');
     document.getElementById('modalTotal').textContent       = 'Rs. ' + s.total.toLocaleString('en-IN');
     

@@ -246,7 +246,11 @@ switch ($action) {
     // --- SALES ---
     case 'getSales':
         try {
-            $stmt = $pdo->query("SELECT * FROM sales ORDER BY id DESC");
+            $stmt = $pdo->query("SELECT s.*, p.category, 
+                                 (SELECT image_data FROM pet_images WHERE pet_id = s.pet_id LIMIT 1) as primary_image
+                                 FROM sales s 
+                                 LEFT JOIN pets p ON s.pet_id = p.id 
+                                 ORDER BY s.id DESC");
             $sales = $stmt->fetchAll();
             foreach ($sales as &$s) {
                 $s['id'] = (int)$s['id'];
@@ -257,6 +261,8 @@ switch ($action) {
                 $s['date'] = $s['sale_date']; 
                 $s['petName'] = $s['pet_name'];
                 $s['petIcon'] = $s['pet_icon'];
+                $s['category'] = $s['category'] ?? 'General';
+                $s['primaryImage'] = $s['primary_image'];
             }
             echo json_encode($sales);
         } catch (PDOException $e) { respondError($e->getMessage()); }
