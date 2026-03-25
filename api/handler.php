@@ -177,14 +177,47 @@ switch ($action) {
             if (!$petId) respondError('Missing Pet ID');
 
             $pdo->beginTransaction();
-
-            // Update pets
             $stmt1 = $pdo->prepare("UPDATE pets SET payment_status = 'Paid' WHERE id = ?");
             $stmt1->execute([$petId]);
-
-            // Update customer_suppliers
             $stmt2 = $pdo->prepare("UPDATE customer_suppliers SET payment_status = 'Paid' WHERE pet_id = ?");
             $stmt2->execute([$petId]);
+            $pdo->commit();
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            respondError($e->getMessage());
+        }
+        break;
+
+    case 'updatePayment':
+        try {
+            $d = $input;
+            $petId = (int)($d['pet_id'] ?? 0);
+            if (!$petId) respondError('Missing Pet ID');
+
+            $pdo->beginTransaction();
+
+            // Update pets
+            $sqlPets = "UPDATE pets SET cost=?, payment_status=?, due_date=?, payment_note=? WHERE id=?";
+            $stmtPets = $pdo->prepare($sqlPets);
+            $stmtPets->execute([
+                (float)($d['cost_paid'] ?? 0),
+                $d['payment_status'] ?? 'Paid',
+                $d['due_date'] ?? null,
+                $d['payment_note'] ?? null,
+                $petId
+            ]);
+
+            // Update customer_suppliers
+            $sqlCS = "UPDATE customer_suppliers SET cost_paid=?, payment_status=?, due_date=?, payment_note=? WHERE pet_id=?";
+            $stmtCS = $pdo->prepare($sqlCS);
+            $stmtCS->execute([
+                (float)($d['cost_paid'] ?? 0),
+                $d['payment_status'] ?? 'Paid',
+                $d['due_date'] ?? null,
+                $d['payment_note'] ?? null,
+                $petId
+            ]);
 
             $pdo->commit();
             echo json_encode(['success' => true]);

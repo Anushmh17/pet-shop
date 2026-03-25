@@ -83,6 +83,10 @@ if (!isset($_SESSION['admin_auth'])) {
       <div class="card-icon" style="background: #efecfd; color: #6c5ce7;">🚚</div>
       <span class="card-label">Suppliers</span>
     </a>
+    <a href="payments.php" class="action-card" id="btn-payments" aria-label="Payments" style="border-top-color: #f1c40f;">
+      <div class="card-icon" style="background: #fff9e6; color: #f1c40f;">💰</div>
+      <span class="card-label">Payments</span>
+    </a>
   </div>
 
   <!-- ===== CATEGORY BOX (full width) ===== -->

@@ -77,6 +77,36 @@
       from { opacity: 0; transform: translateX(15px); }
       to { opacity: 1; transform: translateX(0); }
     }
+
+    /* ---- Pet Detail Modal (Copied/Adapted) ---- */
+    #petModal {
+      display: none; position: fixed; inset: 0; z-index: 2000;
+      background: rgba(0,0,0,.45); align-items: flex-end; justify-content: center;
+    }
+    #petModal.open { display: flex; }
+    #petModalBox {
+      background: var(--clr-surface); border-radius: 24px 24px 0 0;
+      width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+      padding: 24px 20px 48px; animation: modalIn .28s cubic-bezier(.4,0,.2,1) both;
+      position: relative;
+    }
+    @keyframes modalIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-handle { width: 40px; height: 4px; background: var(--clr-border); border-radius: 4px; margin: 0 auto 20px; }
+    #modalCloseBtn {
+      position: absolute; top: 20px; right: 20px; border: none; background: var(--clr-bg);
+      border-radius: 50%; width: 34px; height: 34px; font-weight: 800; color: var(--clr-muted);
+    }
+    .img-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; scrollbar-width: none; }
+    .img-strip::-webkit-scrollbar { display: none; }
+    .img-strip img { width: 110px; height: 110px; object-fit: cover; border-radius: 16px; border: 2px solid var(--clr-border); flex-shrink: 0; }
+    .img-placeholder { width: 110px; height: 110px; border-radius: 16px; border: 2px dashed var(--clr-border); display: flex; align-items: center; justify-content: center; font-size: 2.8rem; background: var(--clr-bg); flex-shrink: 0; }
+
+    .det-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+    .det-cell { background: var(--clr-bg); border-radius: var(--r-md); padding: 12px 14px; }
+    .det-label { font-size: .65rem; font-weight: 800; color: var(--clr-muted); text-transform: uppercase; margin-bottom: 4px; }
+    .det-value { font-size: 1rem; font-weight: 800; color: var(--clr-text); }
+    .det-cell.accent .det-value { color: var(--clr-primary); }
+    .det-cell.wide { grid-column: 1 / -1; }
   </style>
 </head>
 <body id="page-body">
@@ -101,6 +131,47 @@
   </div>
 
 </div>
+</div>
+
+<!-- ===== PET DETAIL MODAL ===== -->
+<div id="petModal" onclick="if(event.target===this) closePetModal()">
+  <div id="petModalBox">
+    <div class="modal-handle"></div>
+    <button id="modalCloseBtn" onclick="closePetModal()">✕</button>
+
+    <div class="img-strip" id="modalImgStrip"></div>
+
+    <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
+      <div id="modalPetIcon" style="font-size:2.2rem; width:60px; height:60px; background:var(--clr-primary-lt); border-radius:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
+      <div>
+        <div id="modalPetName" style="font-size:1.2rem; font-weight:800; color:var(--clr-text);"></div>
+        <div id="modalPetSub" style="font-size:.8rem; font-weight:700; color:var(--clr-muted); margin-top:2px;"></div>
+      </div>
+    </div>
+
+    <div class="det-grid">
+      <div class="det-cell accent">
+        <div class="det-label">💰 Selling Price</div>
+        <div class="det-value" id="mPrice"></div>
+      </div>
+      <div class="det-cell">
+        <div class="det-label">📦 Stock (Qty)</div>
+        <div class="det-value" id="mQty"></div>
+      </div>
+      <div class="det-cell">
+        <div class="det-label">🏷 Cost Price</div>
+        <div class="det-value" id="mCost"></div>
+      </div>
+      <div class="det-cell">
+        <div class="det-label">🔢 Transaction Status</div>
+        <div class="det-value" id="mStatus"></div>
+      </div>
+      <div class="det-cell wide" id="mNotesCell" style="display:none;">
+        <div class="det-label">📝 Internal Notes</div>
+        <div style="font-size:.85rem; color:var(--clr-muted); font-weight:600; line-height:1.5;" id="mNotes"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -291,7 +362,7 @@ function renderCustomerDetail(data) {
         </div>
 
         <h3 style="font-size:.85rem; font-weight:800; color:var(--clr-muted); text-transform:uppercase; margin:25px 0 12px; letter-spacing:.5px;">📦 Supplied Pet Details</h3>
-        <div class="sup-item" style="cursor:default;">
+        <div class="sup-item" onclick="openPetModal(${data.pet_id})">
             <div class="sup-icon">${data.pet_icon}</div>
             <div class="sup-info">
                 <div class="sup-name">${data.pet_name}</div>
@@ -299,7 +370,7 @@ function renderCustomerDetail(data) {
             </div>
             <div style="text-align:right;">
                 <div style="font-size:.85rem; font-weight:800; color:var(--clr-primary);">Rs. ${parseFloat(data.cost_paid).toLocaleString()}</div>
-                <div style="font-size:.6rem; font-weight:700; color:var(--clr-muted);">Cost Entry</div>
+                <div style="font-size:.6rem; font-weight:700; color:var(--clr-muted);">Click to view details ›</div>
             </div>
         </div>
 
@@ -347,7 +418,7 @@ async function renderDealerDetail(name) {
                 </div>
             </div>
             ${pets.map(p => `
-                <div class="sup-item" style="cursor:default;">
+                <div class="sup-item" onclick="openPetModal(${p.id})">
                     <div class="sup-icon" style="background:white;">${p.icon || '🐾'}</div>
                     <div class="sup-info">
                         <div class="sup-name">${p.name}</div>
@@ -355,7 +426,7 @@ async function renderDealerDetail(name) {
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size:.9rem; font-weight:800; color:var(--clr-primary);">Rs. ${parseFloat(p.price).toLocaleString()}</div>
-                        <div style="font-size:.6rem; font-weight:700; color:var(--clr-muted);">Selling Price</div>
+                        <div style="font-size:.6rem; font-weight:700; color:var(--clr-muted);">Tap for details ›</div>
                     </div>
                 </div>
             `).join('')}
@@ -377,6 +448,52 @@ async function markPaidDetail(petId) {
     } else {
         showToast(res?.error || 'Error');
     }
+}
+
+// ========================
+// PET MODAL LOGIC
+// ========================
+async function openPetModal(petId) {
+    const pets = await DB.getPets();
+    const p = pets.find(x => parseInt(x.id) === parseInt(petId));
+    if (!p) return;
+
+    document.getElementById('modalPetIcon').textContent = p.icon || '🐾';
+    document.getElementById('modalPetName').textContent = p.name;
+    document.getElementById('modalPetSub').textContent = (p.category||'').toUpperCase() + (p.pet_variety ? ' · '+p.pet_variety : '');
+    
+    document.getElementById('mPrice').textContent = 'Rs. ' + parseFloat(p.price).toLocaleString();
+    document.getElementById('mQty').textContent = p.qty + ' in stock';
+    document.getElementById('mCost').textContent = 'Rs. ' + parseFloat(p.cost).toLocaleString();
+    document.getElementById('mStatus').textContent = p.payment_status || 'Paid';
+    
+    const notesCell = document.getElementById('mNotesCell');
+    if (p.notes && p.notes.trim()) {
+        document.getElementById('mNotes').textContent = p.notes;
+        notesCell.style.display = 'block';
+    } else {
+        notesCell.style.display = 'none';
+    }
+
+    // Images
+    const strip = document.getElementById('modalImgStrip');
+    strip.innerHTML = '<div class="img-placeholder">⏳</div>';
+    document.getElementById('petModal').classList.add('open');
+
+    try {
+        const imgs = await DB.getPetImages(petId);
+        if (imgs && imgs.length > 0) {
+            strip.innerHTML = imgs.map(src => `<img src="${src}" loading="lazy" />`).join('');
+        } else {
+            strip.innerHTML = `<div class="img-placeholder">${p.icon||'🐾'}</div>`;
+        }
+    } catch(e) {
+        strip.innerHTML = `<div class="img-placeholder">🐾</div>`;
+    }
+}
+
+function closePetModal() {
+    document.getElementById('petModal').classList.remove('open');
 }
 
 function showToast(msg) {

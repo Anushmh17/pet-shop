@@ -76,6 +76,10 @@ const DB = {
     return await this.callAPI('markAsPaid', 'POST', { pet_id: petId });
   },
 
+  async updatePayment(data) {
+    return await this.callAPI('updatePayment', 'POST', data);
+  },
+
   // --- SALES ---
   async getSales() {
     return await this.callAPI('getSales');
