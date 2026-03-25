@@ -7,6 +7,12 @@
   <title>Cash Drawer — Pet Shop</title>
   <link rel="stylesheet" href="../includes/css/style.css" />
   <script src="../includes/js/storage.js"></script>
+  <script>
+    (function() {
+      const theme = localStorage.getItem('app-theme') || 'light';
+      if (theme === 'dark') document.documentElement.classList.add('dark-theme');
+    })();
+  </script>
   <style>
     body { overscroll-behavior-y: contain; background: var(--clr-bg); }
     #content-wrapper { transition: transform 0.25s ease-out; position: relative; }

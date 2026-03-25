@@ -13,11 +13,17 @@ if (!isset($_SESSION['admin_auth'])) {
   <title>Pet Shop — Admin Profile</title>
   <link rel="stylesheet" href="../includes/css/style.css" />
   <script src="../includes/js/storage.js"></script>
+  <script>
+    (function() {
+      const theme = localStorage.getItem('app-theme') || 'light';
+      if (theme === 'dark') document.documentElement.classList.add('dark-theme');
+    })();
+  </script>
   <style>
     .profile-header {
       padding: 40px 20px 30px;
       text-align: center;
-      background: white;
+      background: var(--clr-surface);
       border-radius: 0 0 40px 40px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.03);
       margin-bottom: 25px;
@@ -41,7 +47,7 @@ if (!isset($_SESSION['admin_auth'])) {
     }
     
     .settings-section {
-      background: white;
+      background: var(--clr-surface);
       border-radius: var(--r-lg);
       margin-bottom: 20px;
       overflow: hidden;
@@ -100,14 +106,30 @@ if (!isset($_SESSION['admin_auth'])) {
     /* Top Nav */
     .top-nav {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(255,255,255,0.8);
+      background: var(--clr-surface);
       backdrop-filter: blur(10px);
       padding: 15px 20px; display: flex; align-items: center; gap: 15px;
     }
     .btn-back {
-      width: 40px; height: 40px; background: white; border-radius: 12px;
+      width: 40px; height: 40px; background: var(--clr-surface); border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
       font-size: 1.2rem; border: 1.5px solid var(--clr-border);
+    }
+    
+    /* Segmented Control */
+    .segmented-control {
+      display: flex; background: var(--clr-bg);
+      border-radius: 12px; padding: 4px;
+      gap: 4px; border: 1.5px solid var(--clr-border);
+    }
+    .segment {
+      flex: 1; padding: 6px; text-align: center;
+      font-size: 0.75rem; font-weight: 800; color: var(--clr-muted);
+      border-radius: 8px; cursor: pointer; transition: all 0.2s;
+    }
+    .segment.active {
+      background: var(--clr-primary); color: white;
+      box-shadow: 0 4px 12px rgba(92,158,110,0.25);
     }
   </style>
 </head>
@@ -127,6 +149,16 @@ if (!isset($_SESSION['admin_auth'])) {
   </div>
 
   <div class="settings-section">
+    <!-- Appearance -->
+    <div class="settings-item">
+      <div class="item-icon">🌖</div>
+      <div class="item-label">Appearance</div>
+      <div class="segmented-control" style="width: 140px;">
+        <div class="segment" id="theme-light" onclick="setTheme('light')">Light</div>
+        <div class="segment" id="theme-dark" onclick="setTheme('dark')">Dark</div>
+      </div>
+    </div>
+
     <!-- Language -->
     <div class="settings-item">
       <div class="item-icon">🌐</div>
@@ -200,6 +232,20 @@ function showToast(m) {
     t.textContent = m; t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2500);
 }
+
+function setTheme(theme) {
+    localStorage.setItem('app-theme', theme);
+    document.documentElement.classList.toggle('dark-theme', theme === 'dark');
+    updateThemeUI();
+}
+
+function updateThemeUI() {
+    const theme = localStorage.getItem('app-theme') || 'light';
+    document.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
+    document.getElementById('theme-' + theme).classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', updateThemeUI);
 </script>
 
 </body>

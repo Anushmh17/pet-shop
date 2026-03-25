@@ -13,9 +13,15 @@ if (isset($_SESSION['admin_auth'])) {
     <title>Pet Shop — Admin Login</title>
     <link rel="stylesheet" href="../includes/css/style.css">
     <script src="../includes/js/storage.js"></script>
+    <script>
+      (function() {
+        const theme = localStorage.getItem('app-theme') || 'light';
+        if (theme === 'dark') document.documentElement.classList.add('dark-theme');
+      })();
+    </script>
     <style>
         body {
-            background: #f7f5f0;
+            background: var(--clr-bg);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -24,12 +30,13 @@ if (isset($_SESSION['admin_auth'])) {
             overflow: hidden;
         }
         .login-card {
-            background: white;
+            background: var(--clr-surface);
             width: 100%;
             max-width: 360px;
             padding: 40px 30px;
             border-radius: 28px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            box-shadow: var(--shadow-lg);
+            border: 1.5px solid var(--clr-border);
             text-align: center;
             margin: 20px;
         }
@@ -72,17 +79,18 @@ if (isset($_SESSION['admin_auth'])) {
         .login-input {
             width: 100%;
             padding: 14px 18px;
-            background: #f9f9f9;
-            border: 1.5px solid #eee;
+            background: var(--clr-bg);
+            border: 1.5px solid var(--clr-border);
             border-radius: 14px;
             font-size: 1rem;
             font-weight: 700;
+            color: var(--clr-text);
             outline: none;
             transition: all 0.2s;
         }
         .login-input:focus {
             border-color: var(--clr-primary);
-            background: white;
+            background: var(--clr-surface);
             box-shadow: 0 0 0 4px var(--clr-primary-lt);
         }
         .login-btn {

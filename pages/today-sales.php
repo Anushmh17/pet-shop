@@ -7,6 +7,12 @@
   <title>Today Sales — Pet Shop</title>
   <link rel="stylesheet" href="../includes/css/style.css" />
   <script src="../includes/js/storage.js"></script>
+  <script>
+    (function() {
+      const theme = localStorage.getItem('app-theme') || 'light';
+      if (theme === 'dark') document.documentElement.classList.add('dark-theme');
+    })();
+  </script>
 </head>
 <body id="page-body">
 

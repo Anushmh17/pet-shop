@@ -7,6 +7,12 @@
   <title>Add Pet — Pet Shop</title>
   <link rel="stylesheet" href="../includes/css/style.css" />
   <script src="../includes/js/storage.js"></script>
+  <script>
+    (function() {
+      const theme = localStorage.getItem('app-theme') || 'light';
+      if (theme === 'dark') document.documentElement.classList.add('dark-theme');
+    })();
+  </script>
 </head>
 <body>
 
@@ -41,13 +47,13 @@
 
     <div class="form-group">
       <label class="form-label" for="petNameInput">Pet Name *</label>
-      <input type="text" id="petNameInput" class="form-control" placeholder="e.g. Golden Retriever" autocomplete="off" required />
+      <input type="text" id="petNameInput" class="form-control" placeholder="e.g. Golden Retriever" autocomplete="off" required oninput="checkFormValidity()" />
     </div>
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-sm);">
       <div class="form-group">
         <label class="form-label" for="petCategory">Category *</label>
-        <select id="petCategory" class="form-control" required onchange="handleCategoryChange()">
+        <select id="petCategory" class="form-control" required onchange="handleCategoryChange(); checkFormValidity();">
           <option value="">&mdash; Select &mdash;</option>
           <option value="dog">Dog</option>
           <option value="cat">Cat</option>
@@ -62,7 +68,7 @@
 
       <div class="form-group">
         <label class="form-label" for="petSource">Pet Source *</label>
-        <select id="petSource" class="form-control" required onchange="toggleCustomerFields()">
+        <select id="petSource" class="form-control" required onchange="toggleCustomerFields(); syncPaymentStatus();">
           <option value="Dealer Supplied">Dealer Supplied</option>
           <option value="Customer Supplied">Customer Supplied</option>
         </select>
@@ -94,8 +100,8 @@
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-sm);">
       <div class="form-group">
-        <label class="form-label" for="petStock">Quantity *</label>
-        <input type="number" id="petStock" class="form-control" min="0" value="1" placeholder="0" required />
+        <label class="form-label" for="petStock">Batch Quantity *</label>
+        <input type="number" id="petStock" class="form-control" min="1" value="1" placeholder="e.g. 10" required oninput="calcTotalPrice()" />
       </div>
       <div class="form-group">
         <label class="form-label" for="petAlert">Stock Alert level</label>
@@ -105,8 +111,8 @@
 
     <!-- Pricing Section -->
     <div class="form-group" id="groupPriceSingle">
-      <label class="form-label" for="petPriceSingle">Price for 1 Pet (Rs.) *</label>
-      <input type="number" id="petPriceSingle" class="form-control" min="0" placeholder="0.00" step="0.01" />
+      <label class="form-label" id="labelPriceSingle" for="petPriceSingle">Price per Pet (Rs.) *</label>
+      <input type="number" id="petPriceSingle" class="form-control" min="0" placeholder="0.00" step="0.01" oninput="calcTotalPrice()" />
     </div>
 
     <div id="groupPricePair" style="display:none; grid-template-columns:1fr 1fr; gap: var(--sp-sm); margin-bottom: var(--sp-md);">
@@ -115,14 +121,14 @@
         <input type="number" id="petPricePer" class="form-control" min="0" placeholder="0.00" step="0.01" oninput="calcTotalPrice()" />
       </div>
       <div class="form-group" style="margin-bottom:0;">
-        <label class="form-label" for="petTotalPrice">Total Price (2 Pets) *</label>
-        <input type="number" id="petTotalPrice" class="form-control" min="0" placeholder="0.00" step="0.01" />
+        <label class="form-label" for="petTotalPrice">Total Transaction (Rs.) *</label>
+        <input type="number" id="petTotalPrice" class="form-control" min="0" placeholder="0.00" step="0.01" readonly style="background:var(--clr-bg); font-weight:800; color:var(--clr-primary);" />
       </div>
     </div>
 
     <div class="form-group">
       <label class="form-label" for="petCost">Cost Price (Rs.)</label>
-      <input type="number" id="petCost" class="form-control" min="0" placeholder="0.00" step="0.01" />
+      <input type="number" id="petCost" class="form-control" min="0" placeholder="0.00" step="0.01" oninput="calcTotalPrice()" />
     </div>
 
     <!-- Image Upload Improvements -->
@@ -165,12 +171,12 @@
 
       <div class="form-group">
         <label class="form-label" for="csName">Customer Full Name *</label>
-        <input type="text" id="csName" class="form-control" placeholder="e.g. Arun Silva" autocomplete="off" />
+        <input type="text" id="csName" class="form-control" placeholder="e.g. Arun Silva" autocomplete="off" oninput="checkFormValidity()" />
       </div>
 
       <div class="form-group">
         <label class="form-label" for="csNIC">NIC Number *</label>
-        <input type="text" id="csNIC" class="form-control" placeholder="e.g. 199512345678" autocomplete="off" />
+        <input type="text" id="csNIC" class="form-control" placeholder="e.g. 199512345678" autocomplete="off" oninput="checkFormValidity()" />
       </div>
 
       <div class="form-group">
@@ -190,7 +196,7 @@
 
       <div class="form-group">
         <label class="form-label" for="csCostPaid">Amount Paid to Customer (Rs.) *</label>
-        <input type="number" id="csCostPaid" class="form-control" min="0" placeholder="0.00" step="0.01" />
+        <input type="number" id="csCostPaid" class="form-control" min="0" placeholder="0.00" step="0.01" oninput="syncPaymentStatus()" />
       </div>
 
       <div class="form-group">
@@ -200,8 +206,8 @@
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-sm);">
         <div class="form-group">
-          <label class="form-label" for="csPayStatus">Payment Status *</label>
-          <select id="csPayStatus" class="form-control" onchange="toggleDueDate()">
+          <label class="form-label" for="csPayStatus">Payment Status (Auto)</label>
+          <select id="csPayStatus" class="form-control" disabled style="background:var(--clr-bg); font-weight:800;">
             <option value="Paid">Paid</option>
             <option value="Pending">Pending</option>
           </select>
@@ -260,6 +266,7 @@ function togglePriceFields() {
   const type = document.querySelector('input[name="petType"]:checked').value;
   const groupSingle = document.getElementById('groupPriceSingle');
   const groupPair   = document.getElementById('groupPricePair');
+  const stockField  = document.getElementById('petStock');
 
   if (type === 'Single') {
     groupSingle.style.display = 'block';
@@ -267,12 +274,47 @@ function togglePriceFields() {
   } else {
     groupSingle.style.display = 'none';
     groupPair.style.display   = 'grid';
+    // If pair, ensure it's at least 2
+    if(parseInt(stockField.value) < 2) stockField.value = 2;
   }
+  calcTotalPrice();
 }
 
 function calcTotalPrice() {
-  const per = parseFloat(document.getElementById('petPricePer').value) || 0;
-  document.getElementById('petTotalPrice').value = (per * 2).toFixed(2);
+  const type = document.querySelector('input[name="petType"]:checked').value;
+  const qty = parseInt(document.getElementById('petStock').value) || 0;
+  let pricePer = 0;
+  
+  if (type === 'Single') {
+      pricePer = parseFloat(document.getElementById('petPriceSingle').value) || 0;
+  } else {
+      pricePer = parseFloat(document.getElementById('petPricePer').value) || 0;
+  }
+
+  const total = (pricePer * qty).toFixed(2);
+  
+  // Show total for both modes
+  if (type === 'Pair/Couple') {
+      document.getElementById('petTotalPrice').value = total;
+  } else {
+      // In single mode, total is just pricePer for 1, but we should show total for batch
+      if(qty > 1) {
+          document.getElementById('labelPriceSingle').textContent = 'Price per Pet (Total: ' + total + ' Rs.) *';
+      } else {
+          document.getElementById('labelPriceSingle').textContent = 'Price per Pet (Rs.) *';
+      }
+  }
+  
+  // High-level warnings
+  const cost = parseFloat(document.getElementById('petCost').value) || 0;
+  if(cost > total && total > 0) {
+      document.getElementById('petCost').style.borderColor = 'var(--clr-danger)';
+  } else {
+      document.getElementById('petCost').style.borderColor = '';
+  }
+
+  syncPaymentStatus();
+  checkFormValidity();
 }
 
 function handleImagePreviews(e) {
@@ -295,6 +337,63 @@ function handleImagePreviews(e) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+function syncPaymentStatus() {
+    const source = document.getElementById('petSource').value;
+    if (source !== 'Customer Supplied') return;
+
+    const cost = parseFloat(document.getElementById('petCost').value) || 0;
+    const paid = parseFloat(document.getElementById('csCostPaid').value) || 0;
+    const statusEl = document.getElementById('csPayStatus');
+
+    if (paid >= cost && cost > 0) {
+        statusEl.value = 'Paid';
+    } else {
+        statusEl.value = 'Pending';
+    }
+    toggleDueDate();
+    checkFormValidity();
+}
+
+function checkFormValidity() {
+    const name = document.getElementById('petNameInput').value.trim();
+    const cat = document.getElementById('petCategory').value;
+    const type = document.querySelector('input[name="petType"]:checked').value;
+    const source = document.getElementById('petSource').value;
+    const qty = parseInt(document.getElementById('petStock').value) || 0;
+    
+    let price = 0;
+    if (type === 'Single') {
+        price = parseFloat(document.getElementById('petPriceSingle').value) || 0;
+    } else {
+        price = parseFloat(document.getElementById('petTotalPrice').value) || 0;
+    }
+
+    // New validation rule: Pair must be even
+    const qtyValid = (type === 'Pair/Couple') ? (qty >= 2 && qty % 2 === 0) : (qty >= 1);
+    
+    let isValid = (name !== '' && cat !== '' && qtyValid && price > 0);
+
+    // Visual feedback for quantity
+    document.getElementById('petStock').style.borderColor = qtyValid ? '' : 'var(--clr-danger)';
+
+    if (source === 'Customer Supplied') {
+        const csName = document.getElementById('csName').value.trim();
+        const csNIC = document.getElementById('csNIC').value.trim();
+        const csPaid = parseFloat(document.getElementById('csCostPaid').value) || 0;
+        
+        // NIC validation: 10 or 12 digits
+        const nicValid = /^[0-9]{9}[vVxX]$|^[0-9]{12}$/.test(csNIC);
+        
+        if (csName === '' || !nicValid || csPaid <= 0) isValid = false;
+        
+        // Bonus: NIC field visual feedback
+        document.getElementById('csNIC').style.borderColor = nicValid ? '' : 'var(--clr-danger)';
+    }
+
+    document.getElementById('submitPetBtn').disabled = !isValid;
+    return isValid;
 }
 
 function removeImg(id) {
@@ -502,6 +601,11 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2400);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    togglePriceFields();
+    checkFormValidity();
+});
 </script>
 
 </body>

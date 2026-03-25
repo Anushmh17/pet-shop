@@ -14,6 +14,12 @@ if (!isset($_SESSION['admin_auth'])) {
   <title>Pet Shop — Dashboard</title>
   <link rel="stylesheet" href="../includes/css/style.css" />
   <script src="../includes/js/storage.js"></script>
+  <script>
+    (function() {
+      const theme = localStorage.getItem('app-theme') || 'light';
+      if (theme === 'dark') document.documentElement.classList.add('dark-theme');
+    })();
+  </script>
   <style>
     /* Category action card — full width below grid */
     .card-category .card-icon { background: #fef3e2; color: #e67e22; }
@@ -23,7 +29,7 @@ if (!isset($_SESSION['admin_auth'])) {
         display: flex; align-items: center; gap: 10px;
     }
     .notif-bell {
-        width: 44px; height: 44px; background: white; border-radius: 50%;
+        width: 44px; height: 44px; background: var(--clr-surface); border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-size: 1.3rem; border: 1.5px solid var(--clr-border);
         box-shadow: var(--shadow-sm); position: relative;
@@ -35,7 +41,7 @@ if (!isset($_SESSION['admin_auth'])) {
         background: #ff4757; color: white; font-size: 0.65rem; font-weight: 800;
         min-width: 18px; height: 18px; border-radius: 10px;
         display: flex; align-items: center; justify-content: center;
-        padding: 0 4px; border: 2px solid white;
+        padding: 0 4px; border: 2px solid var(--clr-surface);
         display: none; /* Hidden by default */
     }
     .card-badge {
@@ -45,7 +51,7 @@ if (!isset($_SESSION['admin_auth'])) {
         display: none; /* Hidden by default */
     }
     .profile-link {
-        width: 44px; height: 44px; background: white; border-radius: 50%;
+        width: 44px; height: 44px; background: var(--clr-surface); border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-size: 1.3rem; border: 1.5px solid var(--clr-border);
         box-shadow: var(--shadow-sm); 
@@ -54,7 +60,7 @@ if (!isset($_SESSION['admin_auth'])) {
     /* Notification Popup Dropdown */
     .notif-popup {
         display: none; position: absolute; top: 55px; right: 0; width: 280px;
-        background: white; border-radius: 20px; border: 1.5px solid var(--clr-border);
+        background: var(--clr-surface); border-radius: 20px; border: 1.5px solid var(--clr-border);
         box-shadow: 0 10px 40px rgba(0,0,0,0.12); z-index: 2005; overflow: hidden;
         animation: dropIn .2s ease-out;
     }
