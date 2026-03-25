@@ -353,17 +353,25 @@ async function renderPets() {
         const statusBg    = isLow ? 'var(--clr-danger-lt)' : 'var(--clr-primary-lt)';
         const statusLabel = isLow ? 'LOW STOCK' : 'HEALTHY';
 
+        const imgHtml = p.primaryImage 
+            ? `<img src="${p.primaryImage}" onclick="event.stopPropagation(); maximizeImage(this.src)" style="width:100%; height:100%; object-fit:cover; cursor:zoom-in;" />`
+            : `<span style="font-size:.9rem; color:var(--clr-muted); opacity:0.8;">📸</span>`;
+
         return `
-          <div class="pet-stock-card" onclick="openModal(${idx})" id="pet-card-${p.id}" style="padding-left: 20px;">
+          <div class="pet-stock-card" onclick="openModal(${idx})" id="pet-card-${p.id}" style="display:flex; align-items:center; gap:14px; padding:12px 14px;">
+            <div style="width:48px; height:48px; border-radius:12px; background:var(--clr-bg); border:1.5px solid var(--clr-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+              ${imgHtml}
+            </div>
+
             <div style="flex:1; min-width:0;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div style="font-weight:800; font-size:1rem; color:var(--clr-text); line-height:1.2;">${p.name}</div>
-                <div style="font-size:.65rem; font-weight:800; color:${statusColor}; background:${statusBg}; padding:2px 8px; border-radius:50px; white-space:nowrap; margin-left:8px;">${statusLabel}</div>
+                <div style="font-size:.62rem; font-weight:800; color:${statusColor}; background:${statusBg}; padding:2px 8px; border-radius:50px; white-space:nowrap; margin-left:8px;">${statusLabel}</div>
               </div>
               <div style="font-size:.7rem; font-weight:700; color:var(--clr-muted); margin-top:3px;">${p.category.toUpperCase()} • ${p.pet_variety || 'Regular'}</div>
-              <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
-                <div style="font-size:.85rem; font-weight:800; color:var(--clr-text);">Qty: ${p.qty}</div>
-                <div style="font-size:.85rem; font-weight:800; color:var(--clr-primary);">Rs. ${parseFloat(p.price).toLocaleString()}</div>
+              <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+                <div style="font-size:.82rem; font-weight:800; color:var(--clr-text);">Qty: ${p.qty}</div>
+                <div style="font-size:.82rem; font-weight:800; color:var(--clr-primary);">Rs. ${parseFloat(p.price).toLocaleString('en-IN')}</div>
               </div>
             </div>
             <div style="color:var(--clr-border); font-size:1.1rem; flex-shrink:0;">›</div>
@@ -458,7 +466,7 @@ async function openModal(idx) {
         const images = await DB.getPetImages(p.id);
         if (images && images.length > 0) {
             strip.innerHTML = images.map(src => `
-                <img src="${src}" alt="${p.name}" loading="lazy" />
+                <img src="${src}" alt="${p.name}" loading="lazy" onclick="maximizeImage(this.src)" style="cursor:zoom-in;" />
             `).join('');
         } else {
             strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">📸</div>`;

@@ -382,20 +382,29 @@ function showPets(catKey) {
   }
 
   document.getElementById('mainView').innerHTML = `
-    <div class="view">
+    <div class="view" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
       ${filtered.map(p => {
         const isLow = parseInt(p.qty) <= parseInt(p.alert_level);
+        const imgHtml = p.primaryImage 
+            ? `<img src="${p.primaryImage}" onclick="event.stopPropagation(); maximizeImage(this.src)" style="width:100%; height:100%; object-fit:cover; cursor:zoom-in;" />`
+            : `<span style="font-size:1rem; color:var(--clr-muted); opacity:0.8;">📸</span>`;
+
         return `
-          <div class="pet-list-item" onclick="openModal(${p.id})">
-            <div style="flex:1; min-width:0; padding-left: 5px;">
-              <div class="pli-name">${p.name}</div>
-              <div class="pli-variety">${p.pet_variety || catInfo.label}</div>
-              <div class="pli-price">Rs. ${parseFloat(p.price).toLocaleString('en-IN')}</div>
+          <div class="pet-list-item" onclick="openModal(${p.id})" style="display:flex; align-items:center; gap:14px; background:var(--clr-surface); border-radius:14px; border:1.5px solid var(--clr-border); padding:12px 14px; box-shadow:var(--shadow-sm); cursor:pointer; transition:transform .1s;">
+            
+            <div style="width:48px; height:48px; border-radius:12px; background:var(--clr-bg); border:1.5px solid var(--clr-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+              ${imgHtml}
             </div>
-            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
-              <span class="pli-badge ${isLow ? 'badge-low' : 'badge-ok'}">${isLow ? 'LOW' : 'OK'}</span>
-              <span style="color:var(--clr-border); font-size:.95rem;">›</span>
+
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div class="pli-name" style="font-weight:800; font-size:1.02rem; color:var(--clr-text); line-height:1.2;">${p.name}</div>
+                <span class="pli-badge ${isLow ? 'badge-low' : 'badge-ok'}" style="font-size:.62rem; font-weight:800; padding:2px 8px; border-radius:50px;">${isLow ? 'LOW' : 'OK'}</span>
+              </div>
+              <div class="pli-variety" style="font-size:.78rem; font-weight:700; color:var(--clr-muted); margin-top:3px;">${p.pet_variety || catInfo.label}</div>
+              <div class="pli-price" style="font-weight:800; color:var(--clr-text); font-size:1rem; margin-top:4px;">Rs. ${parseFloat(p.price).toLocaleString('en-IN')}</div>
             </div>
+            <div style="color:var(--clr-border); font-size:1.1rem; flex-shrink:0;">›</div>
           </div>`;
       }).join('')}
     </div>`;
@@ -474,7 +483,7 @@ async function openModal(petId) {
     try {
       const imgs = await DB.getPetImages(p.id);
       if (imgs && imgs.length > 0) {
-        strip.innerHTML = imgs.map(src => `<img src="${src}" alt="${p.name}" loading="lazy" />`).join('');
+        strip.innerHTML = imgs.map(src => `<img src="${src}" alt="${p.name}" loading="lazy" onclick="maximizeImage(this.src)" style="cursor:zoom-in;" />`).join('');
       } else {
         strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">📸</div>`;
       }

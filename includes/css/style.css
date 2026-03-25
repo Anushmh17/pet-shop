@@ -790,13 +790,28 @@ input, select, textarea { font-family: inherit; }
 /* ==========================================================
    RESPONSIVE — DESKTOP ADJUSTMENTS
    ========================================================== */
-@media (min-width: 640px) {
-  .app-wrapper { padding: var(--sp-xl) var(--sp-lg); }
-  .action-card { min-height: 140px; padding: var(--sp-xl) var(--sp-md); }
-  .action-grid { gap: var(--sp-md); }
-  .bar-chart { height: 200px; }
-  .drawer-header { gap: var(--sp-md); }
+
+/* --- GLOBAL LIGHTBOX --- */
+#appLightbox {
+  display: none; position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0,0,0,0.92); align-items: center; justify-content: center;
+  padding: 20px; animation: lbFadeIn 0.2s ease both;
 }
+#appLightbox.open { display: flex; }
+#appLightbox img { 
+  max-width: 100%; max-height: 85vh; border-radius: 12px; 
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 2.5px solid rgba(255,255,255,0.1);
+  transform: scale(0.9); animation: lbImgIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+#lightboxClose {
+  position: absolute; top: 30px; right: 30px; color: #fff; font-size: 1.8rem;
+  background: rgba(255,255,255,0.15); width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  font-weight: 800; backdrop-filter: blur(8px); transition: transform 0.2s;
+}
+#lightboxClose:active { transform: scale(0.9); }
+@keyframes lbFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lbImgIn  { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 @media (min-width: 900px) {
   .app-wrapper { max-width: 640px; }

@@ -192,4 +192,31 @@ document.addEventListener('DOMContentLoaded', () => {
     bars.forEach(b => { if(b) b.remove(); });
     document.body.style.top = '0px';
   }, 1000);
+
+  // --- GLOBAL LIGHTBOX INJECTION ---
+  if (!document.getElementById('appLightbox')) {
+    const lb = document.createElement('div');
+    lb.id = 'appLightbox';
+    lb.onclick = (e) => { if(e.target === lb) closeLightbox(); };
+    lb.innerHTML = `
+      <div id="lightboxClose" onclick="closeLightbox()">✕</div>
+      <img id="lightboxImg" src="" />
+    `;
+    document.body.appendChild(lb);
+  }
 });
+
+/* Lightbox Actions */
+function maximizeImage(src) {
+  const lb = document.getElementById('appLightbox');
+  const img = document.getElementById('lightboxImg');
+  if(!lb || !img) return;
+  img.src = src;
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  const lb = document.getElementById('appLightbox');
+  if(lb) lb.classList.remove('open');
+  document.body.style.overflow = '';
+}

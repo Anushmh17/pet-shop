@@ -246,7 +246,7 @@ function renderHistory(sales) {
     document.getElementById('noSales').style.display = 'none';
     list.innerHTML = sales.map((s, idx) => {
       const imgHtml = s.primaryImage 
-        ? `<img src="${s.primaryImage}" style="width:100%; height:100%; object-fit:cover;" />`
+        ? `<img src="${s.primaryImage}" onclick="maximizeImage(this.src)" style="width:100%; height:100%; object-fit:cover; cursor:zoom-in;" />`
         : `<span style="font-size:1.1rem; color:var(--clr-muted);">📸</span>`;
 
       return `
@@ -290,9 +290,9 @@ async function openSaleModal(idx) {
         imgBox.innerHTML = images.map(src => `
           <img src="${src}" style="
             width:90px; height:90px; object-fit:cover;
-            border-radius:14px; flex-shrink:0;
+            border-radius:14px; flex-shrink:0; cursor:zoom-in;
             border:2px solid var(--clr-border);
-          " />
+          " onclick="maximizeImage(this.src)" />
         `).join('');
     } else {
         imgBox.innerHTML = `

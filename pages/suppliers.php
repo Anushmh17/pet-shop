@@ -426,18 +426,27 @@ async function renderDealerDetail(name) {
                     <div style="font-size:.65rem; font-weight:700; color:var(--clr-muted);">Current inventory supplied by ${name}</div>
                 </div>
             </div>
-            ${pets.map(p => `
-                <div class="sup-item" onclick="openPetModal(${p.id})">
-                    <div class="sup-info" style="padding-left: 5px;">
-                        <div class="sup-name">${p.name}</div>
-                        <div class="sup-meta">Qty: ${p.qty} • Cost: Rs. ${parseFloat(p.cost).toLocaleString()}</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:.9rem; font-weight:800; color:var(--clr-primary);">Rs. ${parseFloat(p.price).toLocaleString()}</div>
-                        <div style="font-size:.6rem; font-weight:700; color:var(--clr-muted);">Tap for details ›</div>
-                    </div>
-                </div>
-            `).join('')}
+            ${pets.map(p => {
+                const imgHtml = p.primaryImage 
+                    ? `<img src="${p.primaryImage}" onclick="event.stopPropagation(); maximizeImage(this.src)" style="width:100%; height:100%; object-fit:cover; cursor:zoom-in;" />`
+                    : `<span style="font-size:1rem; color:var(--clr-muted); opacity:0.8;">📸</span>`;
+                
+                return `
+                    <div class="sup-item" onclick="openPetModal(${p.id})" style="display:flex; align-items:center; gap:14px; background:var(--clr-surface); border-radius:14px; border:1.5px solid var(--clr-border); padding:12px 14px; margin-bottom:10px; cursor:pointer; line-height: 1.2;">
+                        <div style="width:48px; height:48px; border-radius:12px; background:var(--clr-bg); border:1.5px solid var(--clr-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+                            ${imgHtml}
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                <div style="font-weight:800; font-size:1.02rem; color:var(--clr-text);">${p.name}</div>
+                                <span style="font-size:.62rem; font-weight:800; color:var(--clr-primary); background:var(--clr-primary-lt); padding:2px 8px; border-radius:50px; text-transform:uppercase;">${p.category}</span>
+                            </div>
+                            <div style="font-size:.78rem; font-weight:700; color:var(--clr-muted); margin-top:3px;">Qty: ${p.qty} • Cost: Rs. ${parseFloat(p.cost).toLocaleString('en-IN')}</div>
+                            <div style="font-weight:800; color:var(--clr-text); font-size:1rem; margin-top:4px;">Rs. ${parseFloat(p.price).toLocaleString('en-IN')}</div>
+                        </div>
+                        <div style="color:var(--clr-border); font-size:1.1rem; flex-shrink:0;">›</div>
+                    </div>`;
+            }).join('')}
         `;
     } catch(e) {
         main.innerHTML = '<div class="empty-state">❌<p>Failed to load inventory.</p></div>';
@@ -490,7 +499,7 @@ async function openPetModal(petId) {
     try {
         const imgs = await DB.getPetImages(petId);
         if (imgs && imgs.length > 0) {
-            strip.innerHTML = imgs.map(src => `<img src="${src}" loading="lazy" />`).join('');
+            strip.innerHTML = imgs.map(src => `<img src="${src}" loading="lazy" onclick="maximizeImage(this.src)" style="cursor:zoom-in;" />`).join('');
         } else {
             strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">📸</div>`;
         }

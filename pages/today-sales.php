@@ -178,7 +178,7 @@ async function renderTodaySales() {
     empty.style.display = 'none';
     list.innerHTML = sales.map(s => {
       const imgHtml = s.primaryImage 
-        ? `<img src="${s.primaryImage}" style="width:100%; height:100%; object-fit:cover;" />`
+        ? `<img src="${s.primaryImage}" onclick="maximizeImage(this.src)" style="width:100%; height:100%; object-fit:cover; cursor:zoom-in;" />`
         : `<span style="font-size:1rem; color:var(--clr-muted); opacity:0.8;">📸</span>`;
 
       return `

@@ -31,8 +31,12 @@ switch ($action) {
     // --- PETS ---
     case 'getPets':
         try {
-            $stmt = $pdo->query("SELECT * FROM pets ORDER BY id DESC");
-            echo json_encode($stmt->fetchAll());
+            $stmt = $pdo->query("SELECT p.*, (SELECT image_data FROM pet_images WHERE pet_id = p.id LIMIT 1) as primary_image FROM pets p ORDER BY id DESC");
+            $rows = $stmt->fetchAll();
+            foreach($rows as &$r) {
+                $r['primaryImage'] = $r['primary_image'];
+            }
+            echo json_encode($rows);
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 
@@ -82,9 +86,13 @@ switch ($action) {
     case 'getDealerPets':
         try {
             $dealer = $_GET['dealer'] ?? '';
-            $stmt = $pdo->prepare("SELECT * FROM pets WHERE source = ? ORDER BY created_at DESC");
+            $stmt = $pdo->prepare("SELECT p.*, (SELECT image_data FROM pet_images WHERE pet_id = p.id LIMIT 1) as primary_image FROM pets p WHERE source = ? ORDER BY created_at DESC");
             $stmt->execute([$dealer]);
-            echo json_encode($stmt->fetchAll());
+            $rows = $stmt->fetchAll();
+            foreach($rows as &$r) {
+                $r['primaryImage'] = $r['primary_image'];
+            }
+            echo json_encode($rows);
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 

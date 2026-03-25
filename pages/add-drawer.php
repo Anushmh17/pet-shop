@@ -130,8 +130,53 @@
     /* Date field special sizing */
     .field-block.date-field input { font-size: .95rem; }
 
+    /* Custom Add Button inside input */
+    .btn-inline-add {
+      background: var(--clr-primary);
+      color: #fff;
+      font-size: .72rem;
+      font-weight: 800;
+      padding: 6px 14px;
+      border-radius: 8px;
+      text-transform: uppercase;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      box-shadow: 0 4px 10px rgba(92,158,110,0.2);
+    }
+    .btn-inline-add:disabled {
+      background: var(--clr-border);
+      color: var(--clr-muted);
+      box-shadow: none;
+      opacity: 0.6;
+    }
+    .btn-inline-add:active:not(:disabled) { transform: scale(0.92); }
+
+    .spent-entry-pill {
+      background: var(--clr-danger-lt);
+      color: var(--clr-danger);
+      font-size: .68rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     /* Last Synced */
     #lastSync { text-align:center; font-size:.62rem; color:var(--clr-muted); font-weight:800; text-transform:uppercase; margin-bottom:10px; letter-spacing:0.5px; }
+    
+    input[readonly] { opacity: 0.7; pointer-events: none; }
+    
+    .field-error {
+      color: var(--clr-danger);
+      font-size: .62rem;
+      font-weight: 800;
+      margin-top: 4px;
+      display: none;
+    }
+    .field-error.show { display: block; }
   </style>
 </head>
 <body id="page-body">
@@ -155,9 +200,12 @@
   </div>
 
   <!-- Opening Balance -->
-  <div class="field-block">
+  <div class="field-block" id="openingBlock">
     <div class="field-label">🏦 Opening Balance <span style="color:var(--clr-danger);">*</span></div>
-    <input type="number" id="openingBalance" min="0" placeholder="0" oninput="calc()" />
+    <div style="display:flex; align-items:center; gap:10px;">
+      <input type="number" id="openingBalance" min="0" placeholder="0" style="flex:1;" />
+      <button class="btn-inline-add" id="addOpeningBtn" onclick="addOpeningAction()">Add</button>
+    </div>
   </div>
 
   <!-- Cash Added -->
@@ -166,10 +214,33 @@
     <input type="number" id="cashAdded" min="0" placeholder="0" oninput="calc()" />
   </div>
 
-  <!-- Cash Spent -->
+  <!-- Cash Spent Entry Block -->
   <div class="field-block">
-    <div class="field-label">❤️ Cash Spent</div>
-    <input type="number" id="cashSpent" min="0" placeholder="0" oninput="calc()" />
+    <div class="field-label">❤️ Record Cash Spent</div>
+    <div style="display:flex; flex-direction:column;">
+      
+      <!-- Amount Sub-field -->
+      <div style="margin-bottom: 12px;">
+        <label for="spentAmt" style="display:block; font-size:.65rem; color:var(--clr-muted); font-weight:800; text-transform:uppercase; margin-bottom:4px;">Amount (Rs.)</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="number" id="spentAmt" min="1" placeholder="0" style="flex:1; font-size: 1.35rem;" oninput="validateSpentBtn()" />
+          <button class="btn-inline-add" id="addSpentBtn" onclick="addSpentAction()" disabled title="Amount and Reason required">Add</button>
+        </div>
+        <div id="err-amt" class="field-error">Please enter a valid amount</div>
+      </div>
+
+      <!-- Subtle separator -->
+      <div style="height:1.5px; background:var(--clr-bg); margin: 2px 0 12px; border-radius:1px;"></div>
+
+      <!-- Reason Sub-field -->
+      <div style="margin-bottom: 6px;">
+        <label for="spentReason" style="display:block; font-size:.65rem; color:var(--clr-muted); font-weight:800; text-transform:uppercase; margin-bottom:4px;">Reason for Cash Spent (Required)</label>
+        <input type="text" id="spentReason" placeholder="Purpose of this expense" style="font-size: .95rem; border-bottom: 1.5px solid var(--clr-border); padding-bottom: 4px;" oninput="validateSpentBtn()" />
+        <div id="err-reason" class="field-error">Reason is required for this entry</div>
+      </div>
+      
+    </div>
+    <div id="spentHistory" style="margin-top: 8px;"></div>
   </div>
 
   <!-- Section Divider -->
@@ -218,6 +289,14 @@ const body    = document.getElementById('page-body');
 const content = document.getElementById('content-wrapper');
 let startY = 0, distY = 0, activePTR = false;
 
+// Functional State
+let drawerState = {
+  opening: null,
+  added: 0,
+  spentEntries: [], // Array of {amt, reason}
+  openingLocked: false
+};
+
 /* ---- Pull-to-Refresh ---- */
 window.addEventListener('touchstart', e => { if (window.scrollY === 0) { startY = e.touches[0].pageY; activePTR = false; } }, {passive:true});
 window.addEventListener('touchmove', e => {
@@ -251,7 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadDrawer();
 });
 
-/* ---- Load Saved Data for This Date ---- */
+/* ---- Load Saved Data ---- */
 async function loadDrawer() {
   try {
     const date = document.getElementById('drawerDate').value;
@@ -259,24 +338,36 @@ async function loadDrawer() {
     const data = res || {};
 
     if (data.openingBalance !== undefined) {
-      // Saved record exists — populate fields
-      document.getElementById('openingBalance').value = data.openingBalance ?? '';
-      document.getElementById('cashAdded').value      = data.cashAdded      ?? '';
-      document.getElementById('cashSpent').value      = data.cashSpent      ?? '';
+      drawerState.opening = data.openingBalance;
+      drawerState.openingLocked = true;
+      drawerState.added = data.cashAdded || 0;
+      drawerState.spentEntries = data.spentEntries || [];
+      
+      // If we loaded a simple spent value from a previous version, convert it
+      if (typeof data.cashSpent === 'number' && drawerState.spentEntries.length === 0 && data.cashSpent > 0) {
+        drawerState.spentEntries.push({ amt: data.cashSpent, reason: 'Previous Entry' });
+      }
     } else {
-      // No record for this date — try smart fill from yesterday's closing
-      clearFields();
+      resetState();
       await autoFillOpening(date);
     }
 
-    calc();
+    renderUI();
     stamp();
   } catch(e) {
     showToast('Sync Failed!');
+    console.error(e);
   }
 }
 
-/* ---- Smart: Auto-fill Opening from Yesterday's Closing ---- */
+function resetState() {
+  drawerState = { opening: null, added: 0, spentEntries: [], openingLocked: false };
+  document.getElementById('openingBalance').value = '';
+  document.getElementById('cashAdded').value = '';
+  document.getElementById('spentAmt').value = '';
+  document.getElementById('spentReason').value = '';
+}
+
 async function autoFillOpening(date) {
   try {
     const d = new Date(date);
@@ -284,16 +375,121 @@ async function autoFillOpening(date) {
     const prev = await DB.getDrawerEntries(d.toLocaleDateString('en-CA'));
     if (prev && prev.closingBalance !== undefined) {
       document.getElementById('openingBalance').value = prev.closingBalance;
-      calc();
     }
-  } catch(e) { /* silent */ }
+  } catch(e) { }
 }
 
-/* ---- Live Calculation ---- */
+/* ---- Actions ---- */
+function addOpeningAction() {
+  const input = document.getElementById('openingBalance');
+  const val = parseFloat(input.value);
+  if (isNaN(val) || val <= 0) {
+    showToast('Enter valid opening balance > 0'); return;
+  }
+  drawerState.opening = val;
+  drawerState.openingLocked = true;
+  showToast('Opening Balance Locked ✓');
+  renderUI();
+}
+
+function addSpentAction() {
+  const amtInput = document.getElementById('spentAmt');
+  const reasonInput = document.getElementById('spentReason');
+  const amt = parseFloat(amtInput.value);
+  const reason = reasonInput.value.trim();
+
+  // Reset errors
+  document.getElementById('err-amt').classList.remove('show');
+  document.getElementById('err-reason').classList.remove('show');
+
+  if (!drawerState.openingLocked) {
+    showToast('Please add Opening Balance first!'); return;
+  }
+  
+  let hasError = false;
+  if (isNaN(amt) || amt <= 0) {
+    document.getElementById('err-amt').classList.add('show');
+    hasError = true;
+  }
+  if (!reason) {
+    document.getElementById('err-reason').classList.add('show');
+    hasError = true;
+  }
+  if (hasError) return;
+
+  // Check Remaining Cash constraint
+  const currentRemaining = (drawerState.opening || 0) + (parseFloat(document.getElementById('cashAdded').value) || 0) - getTotalSpent();
+  if (amt > currentRemaining) {
+    document.getElementById('err-amt').textContent = 'Insufficient funds in drawer';
+    document.getElementById('err-amt').classList.add('show');
+    showToast('Exceeds remaining cash! ⚠️'); 
+    return;
+  }
+
+  drawerState.spentEntries.push({ amt, reason });
+  amtInput.value = '';
+  reasonInput.value = '';
+  document.getElementById('addSpentBtn').disabled = true;
+  
+  showToast('Expense Added ✓');
+  renderUI();
+}
+
+function validateSpentBtn() {
+  const amtStr = document.getElementById('spentAmt').value;
+  const amt = parseFloat(amtStr);
+  const reason = document.getElementById('spentReason').value.trim();
+  
+  // Basic real-time cleanup of errors if they fixed it
+  if (amt > 0) document.getElementById('err-amt').classList.remove('show');
+  if (reason) document.getElementById('err-reason').classList.remove('show');
+
+  document.getElementById('addSpentBtn').disabled = (isNaN(amt) || amt <= 0 || !reason);
+}
+
+function getTotalSpent() {
+  return drawerState.spentEntries.reduce((sum, e) => sum + e.amt, 0);
+}
+
+/* ---- UI Refresh ---- */
+function renderUI() {
+  const openingInput = document.getElementById('openingBalance');
+  const openingBtn   = document.getElementById('addOpeningBtn');
+  const cashAddedInput = document.getElementById('cashAdded');
+  
+  // Opening Logic
+  if (drawerState.openingLocked) {
+    openingInput.value = drawerState.opening;
+    openingInput.readOnly = true;
+    openingBtn.disabled = true;
+    openingBtn.textContent = 'Locked';
+  } else {
+    openingInput.readOnly = false;
+    openingBtn.disabled = false;
+    openingBtn.textContent = 'Add';
+  }
+
+  // Cash Added
+  cashAddedInput.value = drawerState.added || (drawerState.added === 0 ? '' : drawerState.added);
+
+  // Spent History
+  const history = document.getElementById('spentHistory');
+  history.innerHTML = drawerState.spentEntries.map((e, idx) => `
+    <div class="spent-entry-pill">
+      <span>${e.reason}</span>
+      <span>Rs. ${e.amt.toLocaleString('en-IN')}</span>
+    </div>
+  `).join('');
+
+  calc();
+}
+
 function calc() {
-  const opening = getVal('openingBalance');
-  const added   = getVal('cashAdded');
-  const spent   = getVal('cashSpent');
+  const opening = drawerState.opening || 0;
+  const added   = parseFloat(document.getElementById('cashAdded').value) || 0;
+  drawerState.added = added; // Sync with manual input
+
+  const spent   = getTotalSpent();
   const closing = opening + added - spent;
   const net     = added - spent;
 
@@ -304,7 +500,6 @@ function calc() {
   document.getElementById('bd-added').textContent       = fmt(added);
   document.getElementById('bd-spent').textContent       = fmt(spent);
 
-  // Net Change Pill
   const pillWrap = document.getElementById('netPillWrap');
   let cls, icon, label;
   if (net > 0)       { cls = 'positive'; icon = '▲'; label = `Net +${fmt(net)}`; }
@@ -313,39 +508,27 @@ function calc() {
   pillWrap.innerHTML = `<span class="net-pill ${cls}">${icon} ${label}</span>`;
 }
 
-/* ---- Save ---- */
 async function saveDrawer() {
-  const date    = document.getElementById('drawerDate').value;
-  const opening = getVal('openingBalance');
-
-  if (!document.getElementById('openingBalance').value.trim()) {
-    showToast('Opening Balance is required ⚠️'); return;
+  const date = document.getElementById('drawerDate').value;
+  if (!drawerState.openingLocked) {
+    showToast('Please add and lock Opening Balance 🏦'); return;
   }
 
-  const added   = getVal('cashAdded');
-  const spent   = getVal('cashSpent');
-  const closing = opening + added - spent;
+  const added   = drawerState.added;
+  const spent   = getTotalSpent();
+  const closing = drawerState.opening + added - spent;
 
   const res = await DB.saveDrawerEntries(date, {
-    openingBalance: opening,
+    openingBalance: drawerState.opening,
     cashAdded:      added,
-    cashSpent:      spent,
+    spentEntries:   drawerState.spentEntries,
+    cashSpent:      spent, // for backward compatibility/quick reporting
     closingBalance: closing
   });
 
   if (res && res.error) { showToast('Error saving ❌'); return; }
   showToast('Saved ✓');
   stamp();
-}
-
-/* ---- Helpers ---- */
-function getVal(id) {
-  const v = parseFloat(document.getElementById(id).value);
-  return (isNaN(v) || v < 0) ? 0 : v;
-}
-
-function clearFields() {
-  ['openingBalance','cashAdded','cashSpent'].forEach(id => document.getElementById(id).value = '');
 }
 
 function stamp() {
