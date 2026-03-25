@@ -51,21 +51,53 @@ switch ($action) {
         try {
             $petId = (int)($_GET['pet_id'] ?? 0);
             if (!$petId) { echo json_encode(null); break; }
-            $stmt = $pdo->prepare("SELECT * FROM customer_suppliers WHERE pet_id = ?");
+            $stmt = $pdo->prepare("SELECT cs.*, p.name as pet_name, p.icon as pet_icon 
+                                   FROM customer_suppliers cs 
+                                   JOIN pets p ON cs.pet_id = p.id 
+                                   WHERE cs.pet_id = ?");
             $stmt->execute([$petId]);
             $row = $stmt->fetch();
             echo json_encode($row ?: null);
         } catch (PDOException $e) { respondError($e->getMessage()); }
         break;
 
+    case 'getAllCustomerSuppliers':
+        try {
+            $stmt = $pdo->query("SELECT cs.*, p.name as pet_name, p.icon as pet_icon, p.category, p.pet_variety 
+                                 FROM customer_suppliers cs 
+                                 JOIN pets p ON cs.pet_id = p.id 
+                                 ORDER BY cs.created_at DESC");
+            echo json_encode($stmt->fetchAll());
+        } catch (PDOException $e) { respondError($e->getMessage()); }
+        break;
+
+    case 'getUniqueDealers':
+        try {
+            // Dealers are sources NOT equal to 'Customer Supplied'
+            $stmt = $pdo->query("SELECT DISTINCT source FROM pets WHERE source != 'Customer Supplied' AND source != '' ORDER BY source ASC");
+            echo json_encode($stmt->fetchAll(PDO::FETCH_COLUMN));
+        } catch (PDOException $e) { respondError($e->getMessage()); }
+        break;
+
+    case 'getDealerPets':
+        try {
+            $dealer = $_GET['dealer'] ?? '';
+            $stmt = $pdo->prepare("SELECT * FROM pets WHERE source = ? ORDER BY created_at DESC");
+            $stmt->execute([$dealer]);
+            echo json_encode($stmt->fetchAll());
+        } catch (PDOException $e) { respondError($e->getMessage()); }
+        break;
+
     case 'saveCustomerSupplier':
         try {
             $d = $input;
-            $sql = "INSERT INTO customer_suppliers (pet_id, full_name, nic, nic_photo, address, cost_paid, description)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+            $sql = "INSERT INTO customer_suppliers (pet_id, full_name, nic, nic_photo, address, cost_paid, description, supplier_uid, payment_status, due_date, payment_note)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
                         full_name=VALUES(full_name), nic=VALUES(nic), nic_photo=VALUES(nic_photo),
-                        address=VALUES(address), cost_paid=VALUES(cost_paid), description=VALUES(description)";
+                        address=VALUES(address), cost_paid=VALUES(cost_paid), description=VALUES(description),
+                        supplier_uid=VALUES(supplier_uid), payment_status=VALUES(payment_status), 
+                        due_date=VALUES(due_date), payment_note=VALUES(payment_note)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 (int)$d['pet_id'],
@@ -74,7 +106,11 @@ switch ($action) {
                 $d['nic_photo'] ?? null,
                 $d['address']   ?? '',
                 (float)($d['cost_paid'] ?? 0),
-                $d['description'] ?? ''
+                $d['description'] ?? '',
+                $d['supplier_uid'] ?? null,
+                $d['payment_status'] ?? 'Paid',
+                $d['due_date'] ?? null,
+                $d['payment_note'] ?? null
             ]);
             echo json_encode(['success' => true]);
         } catch (PDOException $e) { respondError($e->getMessage()); }
@@ -97,22 +133,28 @@ switch ($action) {
             $icon     = $p['icon'] ?? '🐾';
             $alert    = (int)($p['alertLevel'] ?? 5);
             $notes    = $p['notes'] ?? '';
+            
+            // New fields
+            $supId   = $p['supplierUid'] ?? null;
+            $supName = $p['supplierName'] ?? null;
+            $payStat = $p['paymentStatus'] ?? 'Paid';
+            $dueDate = $p['dueDate'] ?? null;
+            $payNote = $p['paymentNote'] ?? null;
 
             if ($isUpdate) {
-                $sql = "UPDATE pets SET name=?, category=?, pet_variety=?, source=?, type=?, qty=?, price=?, cost=?, icon=?, alert_level=?, notes=? WHERE id=?";
+                $sql = "UPDATE pets SET name=?, category=?, pet_variety=?, source=?, type=?, qty=?, price=?, cost=?, icon=?, alert_level=?, notes=?, supplier_uid=?, supplier_name=?, payment_status=?, due_date=?, payment_note=? WHERE id=?";
                 $stmt = $pdo->prepare($sql);
-                $stmt->execute([$name, $cat, $variety, $src, $type, $qty, $price, $cost, $icon, $alert, $notes, $p['id']]);
+                $stmt->execute([$name, $cat, $variety, $src, $type, $qty, $price, $cost, $icon, $alert, $notes, $supId, $supName, $payStat, $dueDate, $payNote, $p['id']]);
                 $petId = $p['id'];
             } else {
-                $sql = "INSERT INTO pets (name, category, pet_variety, source, type, qty, price, cost, icon, alert_level, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+                $sql = "INSERT INTO pets (name, category, pet_variety, source, type, qty, price, cost, icon, alert_level, notes, supplier_uid, supplier_name, payment_status, due_date, payment_note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
                 $stmt = $pdo->prepare($sql);
-                $stmt->execute([$name, $cat, $variety, $src, $type, $qty, $price, $cost, $icon, $alert, $notes]);
+                $stmt->execute([$name, $cat, $variety, $src, $type, $qty, $price, $cost, $icon, $alert, $notes, $supId, $supName, $payStat, $dueDate, $payNote]);
                 $petId = $pdo->lastInsertId();
             }
 
             // --- Handle Images ---
             if (isset($p['images']) && is_array($p['images'])) {
-                // If update, maybe clear old images? Usually better to keep if no new ones, but if new ones exist, we replace
                 if ($isUpdate && !empty($p['images'])) {
                     $pdo->prepare("DELETE FROM pet_images WHERE pet_id = ?")->execute([$petId]);
                 }
@@ -127,6 +169,29 @@ switch ($action) {
 
             echo json_encode(['success' => true, 'id' => (int)$petId]);
         } catch (PDOException $e) { respondError($e->getMessage()); }
+        break;
+
+    case 'markAsPaid':
+        try {
+            $petId = (int)($input['pet_id'] ?? 0);
+            if (!$petId) respondError('Missing Pet ID');
+
+            $pdo->beginTransaction();
+
+            // Update pets
+            $stmt1 = $pdo->prepare("UPDATE pets SET payment_status = 'Paid' WHERE id = ?");
+            $stmt1->execute([$petId]);
+
+            // Update customer_suppliers
+            $stmt2 = $pdo->prepare("UPDATE customer_suppliers SET payment_status = 'Paid' WHERE pet_id = ?");
+            $stmt2->execute([$petId]);
+
+            $pdo->commit();
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            respondError($e->getMessage());
+        }
         break;
 
     case 'updateStock':

@@ -48,6 +48,18 @@ const DB = {
     return await this.callAPI('getCustomerSupplier', 'GET', { pet_id: petId });
   },
 
+  async getAllCustomerSuppliers() {
+    return await this.callAPI('getAllCustomerSuppliers');
+  },
+
+  async getUniqueDealers() {
+    return await this.callAPI('getUniqueDealers');
+  },
+
+  async getDealerPets(dealerName) {
+    return await this.callAPI('getDealerPets', 'GET', { dealer: dealerName });
+  },
+
   async saveCustomerSupplier(data) {
     return await this.callAPI('saveCustomerSupplier', 'POST', data);
   },
@@ -58,6 +70,10 @@ const DB = {
 
   async toggleAlert(petId, isStopped) {
     return await this.callAPI('toggleAlert', 'POST', { id: petId, stop: isStopped });
+  },
+
+  async markAsPaid(petId) {
+    return await this.callAPI('markAsPaid', 'POST', { pet_id: petId });
   },
 
   // --- SALES ---

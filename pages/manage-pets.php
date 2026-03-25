@@ -268,6 +268,17 @@
         <div class="dc-label">⚠️ Alert Level</div>
         <div class="dc-value" id="modalAlert"></div>
       </div>
+      <div class="detail-cell wide" id="modalSupplierCell" style="display:none;">
+        <div class="dc-label" style="display:flex; justify-content:space-between;">
+           <span>🚚 Supplier Info</span>
+           <span id="modalSupStatus" style="font-size:.6rem; padding:2px 8px; border-radius:10px;"></span>
+        </div>
+        <div class="notes-box">
+          <div style="font-weight:800; color:var(--clr-text); font-size:.9rem;" id="modalSupText"></div>
+          <div style="font-size:.7rem; color:var(--clr-muted); margin-top:2px;" id="modalSupSub"></div>
+          <div style="font-size:.75rem; color:var(--clr-primary); margin-top:4px; font-weight:700;" id="modalSupNote"></div>
+        </div>
+      </div>
       <div class="detail-cell wide" id="modalNotesCell" style="display:none;">
         <div class="dc-label" style="margin-bottom:6px;">📝 Notes</div>
         <div class="notes-box" id="modalNotes"></div>
@@ -387,13 +398,28 @@ async function openModal(idx) {
     
     const srcEl = document.getElementById('modalSource');
     srcEl.textContent = p.source || '—';
+    
+    // --- Supplier Logic ---
+    const supCell = document.getElementById('modalSupplierCell');
     if (p.source === 'Customer Supplied') {
         srcEl.classList.add('link');
         srcEl.title = 'View Customer Profile';
         srcEl.onclick = () => window.location.href = `customer-supplier.php?pet_id=${p.id}`;
+        
+        supCell.style.display = 'block';
+        document.getElementById('modalSupText').textContent = p.supplier_name || 'Individual';
+        document.getElementById('modalSupSub').textContent  = `ID: ${p.supplier_uid || 'N/A'} • Due: ${p.due_date || 'N/A'}`;
+        document.getElementById('modalSupNote').textContent = p.payment_note ? `Note: "${p.payment_note}"` : '';
+        
+        const b = document.getElementById('modalSupStatus');
+        const isPaid = p.payment_status === 'Paid';
+        b.textContent = p.payment_status || 'Paid';
+        b.style.background = isPaid ? 'var(--clr-primary-lt)' : 'var(--clr-danger-lt)';
+        b.style.color = isPaid ? 'var(--clr-primary)' : 'var(--clr-danger)';
     } else {
         srcEl.classList.remove('link');
         srcEl.onclick = null;
+        supCell.style.display = 'none';
     }
 
     document.getElementById('modalAlert').textContent   = p.alert_level + ' units';

@@ -159,6 +159,11 @@
       </div>
 
       <div class="form-group">
+        <label class="form-label" for="csUid">Supplier Transaction ID</label>
+        <input type="text" id="csUid" class="form-control" readonly style="background:var(--clr-bg); font-family:monospace; font-weight:800; color:var(--clr-primary);" />
+      </div>
+
+      <div class="form-group">
         <label class="form-label" for="csName">Customer Full Name *</label>
         <input type="text" id="csName" class="form-control" placeholder="e.g. Arun Silva" autocomplete="off" />
       </div>
@@ -191,6 +196,25 @@
       <div class="form-group">
         <label class="form-label" for="csDescription">Description / Remarks</label>
         <textarea id="csDescription" class="form-control" placeholder="Any additional remarks about the transaction…" rows="2" style="resize:vertical;"></textarea>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap: var(--sp-sm);">
+        <div class="form-group">
+          <label class="form-label" for="csPayStatus">Payment Status *</label>
+          <select id="csPayStatus" class="form-control" onchange="toggleDueDate()">
+            <option value="Paid">Paid</option>
+            <option value="Pending">Pending</option>
+          </select>
+        </div>
+        <div class="form-group" id="csDueDateGroup" style="display:none;">
+          <label class="form-label" for="csDueDate">Due Date *</label>
+          <input type="date" id="csDueDate" class="form-control" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="csPayNote">Payment Note (Optional)</label>
+        <textarea id="csPayNote" class="form-control" placeholder="e.g. Will pay after 3 days / Check given" rows="2" style="resize:vertical;"></textarea>
       </div>
     </div>
 
@@ -285,6 +309,14 @@ function toggleCustomerFields() {
   const isCustomer = document.getElementById('petSource').value === 'Customer Supplied';
   const sec = document.getElementById('customerSupplierSection');
   sec.style.display = isCustomer ? 'block' : 'none';
+  if (isCustomer && !document.getElementById('csUid').value) {
+    document.getElementById('csUid').value = 'SUP-' + Date.now().toString().slice(-6) + '-' + Math.floor(Math.random() * 1000);
+  }
+}
+
+function toggleDueDate() {
+  const status = document.getElementById('csPayStatus').value;
+  document.getElementById('csDueDateGroup').style.display = (status === 'Pending') ? 'block' : 'none';
 }
 
 function handleNICPhoto(e) {
@@ -342,6 +374,16 @@ async function savePet() {
         stopAlert: false
       };
 
+      // Add supplier details to pet table as well
+      if (source === 'Customer Supplied') {
+          newPet.supplierUid   = document.getElementById('csUid').value;
+          newPet.supplierName  = document.getElementById('csName').value.trim();
+          newPet.paymentStatus = document.getElementById('csPayStatus').value;
+          newPet.dueDate       = document.getElementById('csPayStatus').value === 'Pending' ? document.getElementById('csDueDate').value : null;
+          newPet.paymentNote   = document.getElementById('csPayNote').value.trim();
+          newPet.cost          = parseFloat(document.getElementById('csCostPaid').value) || 0;
+      }
+
       btn.disabled = true; btn.textContent = '⏳ Saving…';
 
       const res = await DB.addPet(newPet);
@@ -363,7 +405,11 @@ async function savePet() {
           nic_photo:   nicPhotoData || null,
           address:     document.getElementById('csAddress').value.trim(),
           cost_paid:   parseFloat(document.getElementById('csCostPaid').value) || 0,
-          description: document.getElementById('csDescription').value.trim()
+          description: document.getElementById('csDescription').value.trim(),
+          supplier_uid: document.getElementById('csUid').value,
+          payment_status: document.getElementById('csPayStatus').value,
+          due_date:     document.getElementById('csPayStatus').value === 'Pending' ? document.getElementById('csDueDate').value : null,
+          payment_note: document.getElementById('csPayNote').value.trim()
         });
       }
 
@@ -439,7 +485,12 @@ function resetForm() {
   document.getElementById('petVariety').value = '';
   // Reset customer supplier fields
   document.getElementById('customerSupplierSection').style.display = 'none';
-  ['csName','csNIC','csAddress','csCostPaid','csDescription'].forEach(id => document.getElementById(id).value = '');
+  ['csName','csNIC','csAddress','csCostPaid','csDescription','csUid','csDueDate','csPayNote'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.value = '';
+  });
+  document.getElementById('csPayStatus').value = 'Paid';
+  toggleDueDate();
   document.getElementById('nicPhotoPreview').innerHTML = '';
   nicPhotoData = null;
   document.getElementById('petNameInput').focus();

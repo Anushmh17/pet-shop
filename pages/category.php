@@ -204,12 +204,15 @@
       </div>
     </div>
 
-    <!-- Supplier -->
-    <div class="supplier-banner">
+    <div class="supplier-banner" id="supplierBanner" style="display:none;">
       <div class="sb-icon">🚚</div>
-      <div>
-        <div class="sb-label">Supplied by</div>
-        <div class="sb-value" id="modalSupplier">—</div>
+      <div style="flex:1;">
+        <div class="sb-label" id="sbLabel">Supplied by</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="sb-value" id="modalSupplier">—</div>
+          <span id="sbStatusBadge" style="font-size:.6rem; padding:2px 8px; border-radius:10px; font-weight:800;"></span>
+        </div>
+        <div id="sbSub" style="font-size:.62rem; color:var(--clr-muted); font-weight:700; margin-top:2px;"></div>
       </div>
     </div>
 
@@ -402,14 +405,29 @@ async function openModal(petId) {
   document.getElementById('modalSub').textContent     = (p.category || '').charAt(0).toUpperCase() + (p.category || '').slice(1) + (p.pet_variety ? ' · ' + p.pet_variety : '');
   
   const supEl = document.getElementById('modalSupplier');
-  supEl.textContent = p.source || 'Not specified';
+  const banner = document.getElementById('supplierBanner');
+  const status = document.getElementById('sbStatusBadge');
+  const sub    = document.getElementById('sbSub');
+
   if (p.source === 'Customer Supplied') {
+    banner.style.display = 'flex';
+    supEl.textContent = p.supplier_name || 'Individual';
     supEl.classList.add('link');
-    supEl.title = 'View Customer Profile';
     supEl.onclick = () => window.location.href = `customer-supplier.php?pet_id=${p.id}`;
+    
+    sub.textContent = `ID: ${p.supplier_uid || 'N/A'} • Due: ${p.due_date || 'N/A'}`;
+    const pStat = p.payment_status || 'Paid';
+    const isPaid = pStat === 'Paid';
+    status.textContent = pStat;
+    status.style.background = isPaid ? 'var(--clr-primary-lt)' : 'var(--clr-danger-lt)';
+    status.style.color = isPaid ? 'var(--clr-primary)' : 'var(--clr-danger)';
   } else {
+    banner.style.display = p.source ? 'flex' : 'none';
+    supEl.textContent = p.source || 'Dealer Supplied';
     supEl.classList.remove('link');
     supEl.onclick = null;
+    status.textContent = '';
+    sub.textContent = '';
   }
 
   document.getElementById('modalPrice').textContent   = 'Rs. ' + parseFloat(p.price).toLocaleString('en-IN');
