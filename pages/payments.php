@@ -185,8 +185,7 @@ function renderList() {
                     <div class="pay-title">${it.full_name}</div>
                     <span class="pay-badge ${isPaid ? 'status-paid' : 'status-pending'}">${it.payment_status}</span>
                 </div>
-                <div class="pay-body">
-                    <div class="pay-pet-icon">${it.pet_icon}</div>
+                <div class="pay-body" style="padding: 0 5px;">
                     <div class="pay-details">
                         <div class="pay-amount">Rs. ${parseFloat(it.cost_paid).toLocaleString()}</div>
                         <div class="pay-date">${it.pet_name} • ${new Date(it.created_at).toLocaleDateString()}</div>

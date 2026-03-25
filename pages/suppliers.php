@@ -99,8 +99,9 @@
     @keyframes modalIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
     .modal-handle { width: 40px; height: 4px; background: var(--clr-border); border-radius: 4px; margin: 0 auto 20px; }
     #modalCloseBtn {
-      position: absolute; top: 20px; right: 20px; border: none; background: var(--clr-bg);
-      border-radius: 50%; width: 34px; height: 34px; font-weight: 800; color: var(--clr-muted);
+      position: absolute; top: 18px; left: 18px; border: none; background: var(--clr-bg);
+      border-radius: 50%; width: 36px; height: 36px; font-weight: 800; color: var(--clr-muted);
+      z-index: 10; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
     .img-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; scrollbar-width: none; }
     .img-strip::-webkit-scrollbar { display: none; }
@@ -140,18 +141,22 @@
 </div>
 
 <!-- ===== PET DETAIL MODAL ===== -->
-<div id="petModal" onclick="if(event.target===this) closePetModal()">
+    <div id="petModal" onclick="if(event.target===this) closePetModal()">
   <div id="petModalBox">
     <div class="modal-handle"></div>
     <button id="modalCloseBtn" onclick="closePetModal()">✕</button>
 
-    <div class="img-strip" id="modalImgStrip"></div>
-
-    <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
-      <div id="modalPetIcon" style="font-size:2.2rem; width:60px; height:60px; background:var(--clr-primary-lt); border-radius:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
-      <div>
-        <div id="modalPetName" style="font-size:1.2rem; font-weight:800; color:var(--clr-text);"></div>
-        <div id="modalPetSub" style="font-size:.8rem; font-weight:700; color:var(--clr-muted); margin-top:2px;"></div>
+    <!-- Header Row: Image Visual (Left) + Identity Text (Right) -->
+    <div style="display: flex; gap: 18px; align-items: flex-start; margin-bottom: 22px; padding-top: 12px; position: relative; z-index: 5;">
+      <!-- Image Gallery -->
+      <div id="modalImgStrip" style="display: flex; gap: 10px; overflow-x: auto; flex-shrink: 0; width: 120px; scrollbar-width: none;">
+        <!-- Images injected by JS -->
+      </div>
+      
+      <!-- Identity Metadata -->
+      <div style="flex: 1; padding-top: 2px;">
+        <div class="modal-pet-name" id="modalPetName" style="font-size: 1.55rem; letter-spacing: -0.4px; line-height: 1.1; margin-bottom: 2px; font-weight: 800; color: var(--clr-text);"></div>
+        <div class="modal-pet-sub" id="modalPetSub"  style="font-size: .8rem; font-weight: 800; color: var(--clr-muted); text-transform: uppercase;"></div>
       </div>
     </div>
 
@@ -267,13 +272,12 @@ async function renderCustomerList(pushHist = true) {
             
             return `
                 <div class="sup-item" onclick="renderCustomerDetail(${JSON.stringify(it).replace(/"/g, '&quot;')})">
-                    <div class="sup-icon">👤</div>
-                    <div class="sup-info">
+                    <div class="sup-info" style="padding-left: 5px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <div class="sup-name">${it.full_name}</div>
                             <span class="sup-status" style="background:${statBg}; color:${statColor};">${it.payment_status}</span>
                         </div>
-                        <div class="sup-meta">${it.pet_icon} ${it.pet_name} • ${new Date(it.created_at).toLocaleDateString()}</div>
+                        <div class="sup-meta">${it.pet_name} • ${new Date(it.created_at).toLocaleDateString()}</div>
                     </div>
                     <div style="color:var(--clr-border);">›</div>
                 </div>
@@ -369,8 +373,7 @@ function renderCustomerDetail(data) {
 
         <h3 style="font-size:.85rem; font-weight:800; color:var(--clr-muted); text-transform:uppercase; margin:25px 0 12px; letter-spacing:.5px;">📦 Supplied Pet Details</h3>
         <div class="sup-item" onclick="openPetModal(${data.pet_id})">
-            <div class="sup-icon">${data.pet_icon}</div>
-            <div class="sup-info">
+            <div class="sup-info" style="padding-left: 5px;">
                 <div class="sup-name">${data.pet_name}</div>
                 <div class="sup-meta">${data.category.toUpperCase()} • ${data.pet_variety || 'Regular'}</div>
             </div>
@@ -425,8 +428,7 @@ async function renderDealerDetail(name) {
             </div>
             ${pets.map(p => `
                 <div class="sup-item" onclick="openPetModal(${p.id})">
-                    <div class="sup-icon" style="background:white;">${p.icon || '🐾'}</div>
-                    <div class="sup-info">
+                    <div class="sup-info" style="padding-left: 5px;">
                         <div class="sup-name">${p.name}</div>
                         <div class="sup-meta">Qty: ${p.qty} • Cost: Rs. ${parseFloat(p.cost).toLocaleString()}</div>
                     </div>
@@ -464,7 +466,6 @@ async function openPetModal(petId) {
     const p = pets.find(x => parseInt(x.id) === parseInt(petId));
     if (!p) return;
 
-    document.getElementById('modalPetIcon').textContent = p.icon || '🐾';
     document.getElementById('modalPetName').textContent = p.name;
     document.getElementById('modalPetSub').textContent = (p.category||'').toUpperCase() + (p.pet_variety ? ' · '+p.pet_variety : '');
     
@@ -491,10 +492,10 @@ async function openPetModal(petId) {
         if (imgs && imgs.length > 0) {
             strip.innerHTML = imgs.map(src => `<img src="${src}" loading="lazy" />`).join('');
         } else {
-            strip.innerHTML = `<div class="img-placeholder">${p.icon||'🐾'}</div>`;
+            strip.innerHTML = `<div class="img-placeholder">📸</div>`;
         }
     } catch(e) {
-        strip.innerHTML = `<div class="img-placeholder">🐾</div>`;
+        strip.innerHTML = `<div class="img-placeholder">📸</div>`;
     }
 }
 

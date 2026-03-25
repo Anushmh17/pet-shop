@@ -114,10 +114,11 @@
       border-radius: 4px; margin: 0 auto 18px;
     }
     #modalCloseBtn {
-      position: absolute; top: 18px; right: 16px;
+      position: absolute; top: 18px; left: 18px;
       background: var(--clr-bg); border: none; border-radius: 50%;
-      width: 32px; height: 32px; font-size: .9rem;
+      width: 36px; height: 36px; font-size: 1.1rem;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
+      z-index: 10;
       color: var(--clr-muted); font-weight: 800;
     }
     .img-strip {
@@ -199,14 +200,18 @@
     <div class="modal-handle"></div>
     <button id="modalCloseBtn" onclick="closeModal()">✕</button>
 
-    <div class="img-strip" id="modalImgStrip"></div>
-
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-      <div id="modalIcon" style="font-size:2rem; width:54px; height:54px; background:var(--clr-primary-lt); border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
-      <div style="min-width:0;">
-        <div id="modalName" style="font-size:1.1rem; font-weight:800; color:var(--clr-text);"></div>
-        <div id="modalSub"  style="font-size:.75rem; font-weight:700; color:var(--clr-muted); margin-top:2px;"></div>
-        <span id="modalStatus" style="font-size:.65rem; font-weight:800; padding:3px 10px; border-radius:50px; display:inline-block; margin-top:5px;"></span>
+    <!-- Header Row: Image Visual (Left) + Identity Text (Right) -->
+    <div style="display: flex; gap: 18px; align-items: flex-start; margin-bottom: 22px; padding-top: 12px; position: relative; z-index: 5;">
+      <!-- Image Gallery -->
+      <div id="modalImgStrip" style="display: flex; gap: 10px; overflow-x: auto; flex-shrink: 0; width: 120px; scrollbar-width: none;">
+        <!-- Images injected by JS -->
+      </div>
+      
+      <!-- Identity Metadata -->
+      <div style="flex: 1; padding-top: 2px;">
+        <div class="modal-pet-name" id="modalName" style="font-size: 1.55rem; letter-spacing: -0.4px; line-height: 1.1; margin-bottom: 2px; font-weight: 800; color: var(--clr-text);"></div>
+        <div class="modal-pet-sub" id="modalSub"  style="font-size: .8rem; font-weight: 800; color: var(--clr-muted); text-transform: uppercase;"></div>
+        <div id="modalStatus" style="margin-top: 6px;"></div>
       </div>
     </div>
 
@@ -382,15 +387,14 @@ function showPets(catKey) {
         const isLow = parseInt(p.qty) <= parseInt(p.alert_level);
         return `
           <div class="pet-list-item" onclick="openModal(${p.id})">
-            <div class="pli-icon" style="background:${color}22;">${p.icon || '🐾'}</div>
-            <div style="flex:1; min-width:0;">
+            <div style="flex:1; min-width:0; padding-left: 5px;">
               <div class="pli-name">${p.name}</div>
               <div class="pli-variety">${p.pet_variety || catInfo.label}</div>
               <div class="pli-price">Rs. ${parseFloat(p.price).toLocaleString('en-IN')}</div>
             </div>
             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
               <span class="pli-badge ${isLow ? 'badge-low' : 'badge-ok'}">${isLow ? 'LOW' : 'OK'}</span>
-              <span style="color:var(--clr-muted); font-size:.95rem;">›</span>
+              <span style="color:var(--clr-border); font-size:.95rem;">›</span>
             </div>
           </div>`;
       }).join('')}
@@ -406,7 +410,6 @@ async function openModal(petId) {
 
   const isLow = parseInt(p.qty) <= parseInt(p.alert_level);
 
-  document.getElementById('modalIcon').textContent    = p.icon || '🐾';
   document.getElementById('modalName').textContent    = p.name;
   document.getElementById('modalSub').textContent     = (p.category || '').charAt(0).toUpperCase() + (p.category || '').slice(1) + (p.pet_variety ? ' · ' + p.pet_variety : '');
   

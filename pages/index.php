@@ -444,7 +444,6 @@ async function loadBestSellingChart() {
 
   labels.innerHTML = allPets.map(p => `
     <div style="flex:1;font-size:.58rem;text-align:center;font-weight:700;color:var(--clr-muted);line-height:1.2;padding-top:10px;min-width:70px;display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <span style="font-size:1.1rem;display:block;margin-bottom:2px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.1));">${p.icon||'🐾'}</span>
       <span style="max-width:65px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</span>
     </div>`).join('');
 }

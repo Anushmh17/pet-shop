@@ -166,20 +166,21 @@
     /* Close button */
     #modalCloseBtn {
       position: absolute;
-      top: 20px;
-      right: 18px;
+      top: 18px;
+      left: 18px;
       background: var(--clr-bg);
       border: none;
       border-radius: 50%;
-      width: 34px;
-      height: 34px;
-      font-size: 1rem;
+      width: 36px;
+      height: 36px;
+      font-size: 1.1rem;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       color: var(--clr-muted);
       font-weight: 800;
+      z-index: 10;
     }
   </style>
 </head>
@@ -233,18 +234,18 @@
     <div class="modal-handle"></div>
     <button id="modalCloseBtn" onclick="closeModal()" aria-label="Close">✕</button>
 
-    <!-- Image Strip -->
-    <div class="img-strip" id="modalImgStrip">
-      <!-- Images injected by JS -->
-    </div>
-
-    <!-- Pet name + meta -->
-    <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px;">
-      <div id="modalIcon" style="font-size:2.2rem; width:56px; height:56px; background:var(--clr-primary-lt); border-radius:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
-      <div>
-        <div class="modal-pet-name" id="modalName"></div>
-        <div class="modal-pet-sub" id="modalSub"></div>
-        <span class="status-badge" id="modalStatusBadge" style="margin-top:6px; display:inline-block;"></span>
+    <!-- Header Row: Main Image + Identity -->
+    <div style="display: flex; gap: 18px; align-items: flex-start; margin-bottom: 22px; padding-top: 12px; position: relative; z-index: 5;">
+      <!-- Primary Visual (Left) -->
+      <div id="modalImgStrip" style="display: flex; gap: 10px; overflow-x: auto; flex-shrink: 0; width: 120px; scrollbar-width: none;">
+        <!-- Images injected by JS -->
+      </div>
+      
+      <!-- Identity Metadata (Top-Right Placement) -->
+      <div style="flex: 1; padding-top: 2px;">
+        <div class="modal-pet-name" id="modalName" style="font-size: 1.55rem; letter-spacing: -0.4px; line-height: 1.1; margin-bottom: 2px;"></div>
+        <div class="modal-pet-sub" id="modalSub" style="font-size: 0.82rem; font-weight: 800; color: var(--clr-muted); text-transform: uppercase;"></div>
+        <div id="modalStatusBadge" style="margin-top: 6px;"></div>
       </div>
     </div>
 
@@ -353,8 +354,7 @@ async function renderPets() {
         const statusLabel = isLow ? 'LOW STOCK' : 'HEALTHY';
 
         return `
-          <div class="pet-stock-card" onclick="openModal(${idx})" id="pet-card-${p.id}">
-            <div style="font-size:2.2rem; background:var(--clr-primary-lt); width:60px; height:60px; display:flex; align-items:center; justify-content:center; border-radius:15px; flex-shrink:0;">${p.icon || '🐾'}</div>
+          <div class="pet-stock-card" onclick="openModal(${idx})" id="pet-card-${p.id}" style="padding-left: 20px;">
             <div style="flex:1; min-width:0;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div style="font-weight:800; font-size:1rem; color:var(--clr-text); line-height:1.2;">${p.name}</div>
@@ -394,7 +394,6 @@ async function openModal(idx) {
     const isLow = parseInt(p.qty) <= parseInt(p.alert_level);
 
     // --- Text fields ---
-    document.getElementById('modalIcon').textContent    = p.icon || '🐾';
     document.getElementById('modalName').textContent    = p.name;
     document.getElementById('modalSub').textContent     = p.category.charAt(0).toUpperCase() + p.category.slice(1) + (p.pet_variety ? ' • ' + p.pet_variety : '');
     document.getElementById('modalPrice').textContent   = 'Rs. ' + parseFloat(p.price).toLocaleString('en-IN');

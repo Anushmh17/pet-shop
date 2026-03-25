@@ -179,12 +179,11 @@ async function renderTodaySales() {
     empty.style.display = 'none';
     list.innerHTML = sales.map(s => `
       <div class="sale-item">
-        <div class="item-icon">${s.petIcon}</div>
-        <div class="item-info">
+        <div class="item-info" style="padding-left: 5px;">
           <div class="item-name">${s.petName}</div>
           <div class="item-meta">${s.qty} unit${s.qty > 1 ? 's' : ''} &middot; @Rs. ${s.price.toLocaleString('en-IN')}</div>
         </div>
-        <div class="item-amt">Rs. ${s.total.toLocaleString('en-IN')}</div>
+        <div class="item-amt" style="font-weight: 800; color: var(--clr-text);">Rs. ${s.total.toLocaleString('en-IN')}</div>
       </div>
     `).join('');
 
