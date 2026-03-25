@@ -113,13 +113,6 @@ if (!isset($_SESSION['admin_auth'])) {
     <div id="noSales" class="empty-state" style="display:none; padding: 20px;"><p style="font-size:.8rem;">No sales yet.</p></div>
   </section>
 
-  <!-- Pending Payments Section -->
-  <section class="overview-section" style="margin-top:20px;">
-    <h2 class="section-title">Pending Payments</h2>
-    <div id="pendingPaymentsList" style="margin-top:10px;"></div>
-    <div id="noPending" class="empty-state" style="display:none; padding:30px 0;"><p>All payments are settled! ✅</p></div>
-  </section>
-
   <!-- Stock Alert Section -->
   <section class="overview-section" style="margin-top:20px; margin-bottom: 20px;">
     <div class="flex-between">
@@ -170,7 +163,7 @@ window.addEventListener('touchend', async () => {
 
 async function initDashboard() {
   updateTodayDate();
-  await loadPendingPayments();
+  await loadPaymentNotifications();
   await loadStockAlerts();
   await loadBestSellingChart();
 }
@@ -183,83 +176,34 @@ function updateTodayDate() {
   document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 }
 
-async function loadPendingPayments() {
-  const list = document.getElementById('pendingPaymentsList');
+async function loadPaymentNotifications() {
   const notifArea = document.getElementById('notif-area');
   const pets = await DB.getPets();
-  
   const pending = pets.filter(p => p.payment_status === 'Pending');
   
-  if (pending.length === 0) {
-    list.innerHTML = '';
-    notifArea.innerHTML = '';
-    document.getElementById('noPending').style.display = 'block';
-    return;
-  }
-
-  document.getElementById('noPending').style.display = 'none';
   notifArea.innerHTML = '';
+  if (pending.length === 0) return;
 
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
 
-  list.innerHTML = `
-    <div class="table-container">
-      <table class="pet-table">
-        <thead>
-          <tr>
-            <th>Supplier / Pet</th>
-            <th>Amount</th>
-            <th>Due</th>
-            <th style="text-align:right;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${pending.map(p => {
-            const isOverdue = p.due_date && p.due_date < todayStr;
-            const dueDateText = p.due_date ? new Date(p.due_date).toLocaleDateString('en-IN', {day:'numeric', month:'short'}) : '—';
-            
-            // Notification logic (reminder alert)
-            // Show alert for each pending payment
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'payment-alert';
-            alertDiv.innerHTML = `
-              <span style="font-size:1.5rem;">🔔</span>
-              <div style="flex:1;">
-                <div style="font-size:.85rem; font-weight:800; color:#856404;">Pending payment: ${p.name} from ${p.supplier_name || 'Individual'}</div>
-                <div style="font-size:.7rem; font-weight:600; color:#856404; opacity:0.8;">Due by ${dueDateText}</div>
-              </div>
-            `;
-            notifArea.appendChild(alertDiv);
-
-            return `
-              <tr id="pay-${p.id}">
-                <td>
-                  <div style="font-weight:800; font-size:.85rem;">${p.supplier_name || '—'}</div>
-                  <div style="font-size:.65rem; color:var(--clr-muted); font-weight:700;">${p.icon} ${p.name}</div>
-                </td>
-                <td style="font-weight:800; color:var(--clr-primary);">Rs. ${parseFloat(p.cost).toLocaleString()}</td>
-                <td class="${isOverdue ? 'overdue' : ''}" style="font-size:.75rem; font-weight:700;">${isOverdue ? '⚠️ ' : ''}${dueDateText}</td>
-                <td style="text-align:right;">
-                  <button class="btn btn-primary" style="font-size:.6rem; padding:6px 10px;" onclick="handleMarkPaid(${p.id}, '${p.name}')">Pay</button>
-                </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`;
-}
-
-async function handleMarkPaid(id, name) {
-  if (!confirm(`Mark payment for "${name}" as paid?`)) return;
-  const res = await DB.markAsPaid(id);
-  if (res && res.success) {
-    showToast('Payment marked as paid!');
-    initDashboard(); // Refresh
-  } else {
-    showToast('Error: ' + (res?.error || 'Unknown'));
-  }
+  pending.forEach(p => {
+    const isOverdue = p.due_date && p.due_date < todayStr;
+    const dueDateText = p.due_date ? new Date(p.due_date).toLocaleDateString('en-IN', {day:'numeric', month:'short'}) : '—';
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'payment-alert';
+    alertDiv.style.cursor = 'pointer';
+    alertDiv.onclick = () => window.location.href = 'payments.php';
+    alertDiv.innerHTML = `
+      <span style="font-size:1.5rem;">🔔</span>
+      <div style="flex:1;">
+        <div style="font-size:.85rem; font-weight:800; color:#856404;">Pending payment: ${p.name} from ${p.supplier_name || 'Individual'}</div>
+        <div style="font-size:.7rem; font-weight:600; color:#856404; opacity:0.8;">Due by ${dueDateText} ${isOverdue ? '(OVERDUE)' : ''}</div>
+      </div>
+    `;
+    notifArea.appendChild(alertDiv);
+  });
 }
 
 async function loadStockAlerts() {
