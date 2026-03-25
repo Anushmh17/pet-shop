@@ -191,27 +191,46 @@ let startY = 0, distY = 0, pulling = false;
 const cnt = document.getElementById('content-wrapper');
 
 window.addEventListener('touchstart', e => {
-  if(window.scrollY < 5){ startY = e.touches[0].pageY; pulling = true; }
+  // Only allow starting a pull if we're at the very top and NOT scrolling
+  if (window.scrollY <= 0) {
+    startY = e.touches[0].pageY;
+    pulling = true;
+  } else {
+    pulling = false;
+  }
 }, {passive:true});
 
 window.addEventListener('touchmove', e => {
-  if(!pulling) return;
+  if (!pulling || window.scrollY > 0) return;
+  
   const y = e.touches[0].pageY;
-  distY = (y - startY) * 0.4;
-  if(distY > 0 && window.scrollY < 5){
-    if(e.cancelable) e.preventDefault();
-    document.body.classList.add('ptr-pulling');
-    cnt.style.transform = `translateY(${Math.min(distY, 80)}px)`;
+  const rawDist = y - startY;
+  
+  // Only trigger visual movement after a deliberate 20px intent
+  if (rawDist > 20) {
+    // Apply logarithmic resistance: the further you pull, the harder it gets
+    distY = Math.pow(rawDist - 20, 0.85); 
+    
+    if (e.cancelable) e.preventDefault();
+    
+    // Only show "pulling" state once distance is substantial
+    if (distY > 30) document.body.classList.add('ptr-pulling');
+    
+    // Smooth transform with a hard cap
+    cnt.style.transform = `translateY(${Math.min(distY, 100)}px)`;
   }
 }, {passive:false});
 
 window.addEventListener('touchend', async () => {
-  if(pulling && distY >= 60){
+  if (pulling && distY >= 85) { // Substantial threshold for deliberate refresh
     document.body.classList.remove('ptr-pulling');
     document.body.classList.add('ptr-loading');
     cnt.style.transform = 'translateY(50px)';
     await initDashboard();
-    setTimeout(() => { document.body.classList.remove('ptr-loading'); cnt.style.transform = ''; }, 500);
+    setTimeout(() => { 
+      document.body.classList.remove('ptr-loading'); 
+      cnt.style.transform = ''; 
+    }, 600);
   } else {
     document.body.classList.remove('ptr-pulling', 'ptr-loading');
     cnt.style.transform = '';

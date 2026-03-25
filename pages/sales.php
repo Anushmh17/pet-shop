@@ -64,6 +64,18 @@
     </div>
   </div>
 
+  <!-- Revenue Trend Chart -->
+  <section class="overview-section" style="margin-bottom: var(--sp-lg);">
+    <h2 class="section-title">Revenue Trend</h2>
+    <div class="chart-wrapper" style="padding: 15px; background: #fff; border: 1.5px solid var(--clr-border); border-radius: 20px;">
+        <div id="revenueChartWrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;">
+            <div id="revenueChart" style="height:140px; display:flex; align-items:flex-end; gap:8px; min-width:100%; width:max-content; padding-top:20px;"></div>
+            <div id="chartLabels" style="display:flex; gap:8px; margin-top:8px; border-top:1px solid var(--clr-border); padding-top:8px;"></div>
+        </div>
+        <div id="chartEmpty" style="display:none; text-align:center; padding:30px 0; color:var(--clr-muted); font-size:.72rem; font-weight:600;">No revenue data for this period.</div>
+    </div>
+  </section>
+
   <div style="height: 1px;"></div>
   <!-- Filter bar -->
   <div class="flex gap-sm" style="margin-bottom: var(--sp-md); margin-top: var(--sp-lg); align-items:center;">
@@ -219,9 +231,12 @@ async function getFilteredSales() {
 }
 
 async function applyFilter() {
+    const fromVal = document.getElementById('dateFrom').value;
+    const toVal   = document.getElementById('dateTo').value;
     const sales = await getFilteredSales();
     renderHistory(sales);
     updateStats(sales);
+    renderRevenueChart(sales, fromVal, toVal);
 }
 
 function renderHistory(sales) {
@@ -308,6 +323,94 @@ function updateStats(filteredSales) {
     document.getElementById('revenueMain').textContent = 'Rs. ' + totalRev.toLocaleString('en-IN');
 }
 
+function renderRevenueChart(sales, from, to) {
+    const chart = document.getElementById('revenueChart');
+    const labels = document.getElementById('chartLabels');
+    const empty = document.getElementById('chartEmpty');
+    const wrap = document.getElementById('revenueChartWrap');
+
+    if (sales.length === 0 || !from || !to) {
+        chart.innerHTML = ''; labels.innerHTML = '';
+        wrap.style.display = 'none'; empty.style.display = 'block';
+        return;
+    }
+
+    wrap.style.display = 'block'; empty.style.display = 'none';
+
+    const startDate = new Date(from);
+    const endDate = new Date(to);
+    const diffDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+    let bucketSize = 1;
+    if (diffDays <= 7) {
+        bucketSize = 1; // Daily
+    } else if (diffDays <= 31) {
+        bucketSize = Math.ceil(diffDays / 6); // ~5-day buckets to fit 6 bars
+    } else {
+        bucketSize = 7; // Weekly
+    }
+
+    let buckets = [];
+    for (let i = 0; i < diffDays; i += bucketSize) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + i);
+        const nextD = new Date(d);
+        nextD.setDate(nextD.getDate() + bucketSize);
+        
+        // Label logic
+        let label = '';
+        if (bucketSize === 1) {
+            label = d.toLocaleDateString('en-US', { weekday: 'short' });
+        } else {
+            label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        }
+
+        buckets.push({
+            label: label,
+            start: d,
+            end: nextD,
+            value: 0
+        });
+    }
+
+    // Aggregate sales
+    sales.forEach(s => {
+        const sDate = new Date(s.date);
+        const bucket = buckets.find(b => sDate >= b.start && sDate < b.end);
+        if (bucket) bucket.value += (s.total || 0);
+    });
+
+    // Handle X-axis overcrowding: for very short ranges, don't force width
+    if (buckets.length <= 10) {
+        chart.style.width = '100%';
+        chart.style.minWidth = 'auto';
+    } else {
+        chart.style.width = 'max-content';
+        chart.style.minWidth = '100%';
+    }
+
+    // Dynamic Y-axis scaling (Trading type)
+    const maxValue = Math.max(...buckets.map(b => b.value), 100);
+
+    chart.innerHTML = buckets.map(b => {
+        const h = maxValue > 0 ? (b.value / maxValue) * 100 : 0;
+        const valText = b.value >= 1000 ? (b.value / 1000).toFixed(1) + 'k' : b.value;
+        return `
+            <div style="flex:1; display:flex; flex-direction:column; align-items:center; min-width:30px; height:100%; position:relative;">
+                <div style="margin-top:auto; width:65%; max-width:20px; height:${Math.max(h, 4)}%; background:var(--clr-primary); border-radius:4px 4px 0 0; transition:height .4s ease-out; position:relative;">
+                    ${b.value > 0 ? `<span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:.58rem; font-weight:800; color:var(--clr-text); white-space:nowrap;">${valText}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    labels.innerHTML = buckets.map(b => `
+        <div style="flex:1; font-size:.55rem; text-align:center; font-weight:700; color:var(--clr-muted); line-height:1; min-width:30px;">
+            ${b.label}
+        </div>
+    `).join('');
+}
+
 function formatDate(ds) {
     const d = new Date(ds);
     return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
@@ -322,25 +425,38 @@ function showToast(msg) {
 
 // --- PULL TO REFRESH LOGIC ---
 let startY = 0, distY = 0, pulling = false;
-window.addEventListener('touchstart', e => { if(window.scrollY === 0){ startY = e.touches[0].pageY; pulling = true; } }, {passive:true});
-window.addEventListener('touchmove', e => {
-    if(!pulling) return;
-    distY = (e.touches[0].pageY - startY) * 0.4;
-    if(distY > 0 && window.scrollY === 0){
-        document.body.classList.add('ptr-pulling');
-        document.getElementById('content-wrapper').style.transform = `translateY(${Math.min(distY, 80)}px)`;
-    }
+window.addEventListener('touchstart', e => { 
+  if (window.scrollY <= 0) {
+    startY = e.touches[0].pageY; 
+    pulling = true; 
+  } else {
+    pulling = false;
+  }
 }, {passive:true});
+
+window.addEventListener('touchmove', e => {
+    if (!pulling || window.scrollY > 0) return;
+    const y = e.touches[0].pageY;
+    const rawDist = y - startY;
+    
+    if (rawDist > 20) {
+        distY = Math.pow(rawDist - 20, 0.85);
+        if (e.cancelable) e.preventDefault();
+        if (distY > 30) document.body.classList.add('ptr-pulling');
+        document.getElementById('content-wrapper').style.transform = `translateY(${Math.min(distY, 100)}px)`;
+    }
+}, {passive:false});
+
 window.addEventListener('touchend', async () => {
-    if(pulling && distY >= 60){
+    if (pulling && distY >= 85) {
         document.body.classList.remove('ptr-pulling');
         document.body.classList.add('ptr-loading');
-        document.getElementById('content-wrapper').style.transform = 'translateY(40px)';
+        document.getElementById('content-wrapper').style.transform = 'translateY(50px)';
         await applyFilter(); 
         setTimeout(() => {
             document.body.classList.remove('ptr-loading');
             document.getElementById('content-wrapper').style.transform = '';
-        }, 500);
+        }, 600);
     } else {
         document.body.classList.remove('ptr-pulling', 'ptr-loading');
         document.getElementById('content-wrapper').style.transform = '';
