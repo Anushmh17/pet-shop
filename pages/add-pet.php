@@ -26,20 +26,10 @@
 <!-- ===== MAIN CONTENT ===== -->
 <div class="app-wrapper" style="padding-top: var(--sp-md);">
 
-  <!-- Icon picker preview -->
+  <!-- Header Section -->
   <div style="text-align:center; margin-bottom: var(--sp-lg);">
-    <div id="petPreview" style="
-      width: 80px; height: 80px;
-      border-radius: 22px;
-      background: var(--clr-primary-lt);
-      font-size: 2.5rem;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto var(--sp-sm);
-      border: 2.5px dashed var(--clr-primary);
-      cursor: pointer;
-      transition: var(--tr);
-    " onclick="cycleIcon()" title="Tap to change icon">🐶</div>
-    <p style="font-size:.75rem; font-weight:600; color:var(--clr-muted);">Tap to change icon</p>
+    <h2 class="section-title" style="margin-bottom: 5px;">Primary Specimen Data</h2>
+    <p style="font-size:.75rem; font-weight:600; color:var(--clr-muted);">Ensure all mandatory fields (*) are completed</p>
   </div>
 
   <!-- Form card -->
@@ -250,17 +240,7 @@
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
 <script>
-const ICONS = ['🐶','🐱','🦜','🐰','🐹','🐠','🐢','🦮','🐕','🦁','🐻','🦊','🐸'];
-let iconIdx = 0;
 let uploadedImages = [];
-
-function cycleIcon() {
-  iconIdx = (iconIdx + 1) % ICONS.length;
-  const el = document.getElementById('petPreview');
-  el.style.transform = 'scale(1.15)';
-  el.textContent = ICONS[iconIdx];
-  setTimeout(() => el.style.transform = '', 200);
-}
 
 function togglePriceFields() {
   const type = document.querySelector('input[name="petType"]:checked').value;
@@ -468,7 +448,7 @@ async function savePet() {
       const newPet = {
         name, category, source, type, qty, price, cost, alertLevel: alertLvl,
         notes, petVariety,
-        icon: document.getElementById('petPreview').textContent,
+        icon: '',
         images: uploadedImages.map(img => img.data),
         stopAlert: false
       };
@@ -577,8 +557,6 @@ function resetForm() {
   document.getElementById('petAlert').value = '10';
   document.getElementById('imgPreviewList').innerHTML = '';
   uploadedImages = [];
-  document.getElementById('petPreview').textContent = ICONS[0];
-  iconIdx = 0;
   togglePriceFields();
   document.getElementById('varietyGroup').style.display = 'none';
   document.getElementById('petVariety').value = '';

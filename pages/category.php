@@ -471,16 +471,16 @@ async function openModal(petId) {
   document.getElementById('petModal').classList.add('open');
   document.body.style.overflow = 'hidden';
 
-  try {
-    const imgs = await DB.getPetImages(p.id);
-    if (imgs && imgs.length > 0) {
-      strip.innerHTML = imgs.map(src => `<img src="${src}" alt="${p.name}" loading="lazy" />`).join('');
-    } else {
-      strip.innerHTML = `<div class="img-placeholder">${p.icon || '🐾'}</div>`;
+    try {
+      const imgs = await DB.getPetImages(p.id);
+      if (imgs && imgs.length > 0) {
+        strip.innerHTML = imgs.map(src => `<img src="${src}" alt="${p.name}" loading="lazy" />`).join('');
+      } else {
+        strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">📸</div>`;
+      }
+    } catch(e) {
+      strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">📸</div>`;
     }
-  } catch(e) {
-    strip.innerHTML = `<div class="img-placeholder">${p.icon || '🐾'}</div>`;
-  }
 }
 
 function closeModal() {

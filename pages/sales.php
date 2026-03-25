@@ -128,16 +128,10 @@
     "></div>
 
     <!-- title row -->
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
-      <div id="modalIcon" style="
-        font-size:2rem; width:54px; height:54px;
-        background:var(--clr-primary-lt); border-radius:14px;
-        display:flex; align-items:center; justify-content:center;
-        flex-shrink:0;
-      "></div>
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; padding-left: 5px;">
       <div>
-        <div id="modalPetName" style="font-size:1.05rem; font-weight:800; color:var(--clr-text);"></div>
-        <div id="modalDate" style="font-size:.78rem; color:var(--clr-muted); font-weight:600; margin-top:2px;"></div>
+        <div id="modalPetName" style="font-size:1.35rem; font-weight:800; color:var(--clr-text); letter-spacing:-0.3px;"></div>
+        <div id="modalDate" style="font-size:.8rem; color:var(--clr-muted); font-weight:700; margin-top:2px;"></div>
       </div>
     </div>
 
@@ -256,15 +250,14 @@ function renderHistory(sales) {
 
     document.getElementById('noSales').style.display = 'none';
     list.innerHTML = sales.map((s, idx) => `
-      <div class="sale-item" onclick="openSaleModal(${idx})" style="cursor:pointer; transition:transform .15s;" 
+      <div class="sale-item" onclick="openSaleModal(${idx})" style="cursor:pointer; transition:transform .15s; padding-left: 18px;" 
            onmousedown="this.style.transform='scale(.97)'" onmouseup="this.style.transform=''">
-        <div class="item-icon">${s.petIcon}</div>
         <div class="item-info">
           <div class="item-name">${s.petName}</div>
           <div class="item-meta">${s.qty} unit${s.qty > 1 ? 's' : ''} &middot; ${formatDate(s.date)}</div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-          <div class="item-amt">Rs. ${s.total.toLocaleString('en-IN')}</div>
+          <div class="item-amt" style="font-weight: 800; color: var(--clr-text);">Rs. ${s.total.toLocaleString('en-IN')}</div>
           <span style="color:var(--clr-muted); font-size:.8rem;">›</span>
         </div>
       </div>
@@ -293,11 +286,10 @@ async function openSaleModal(idx) {
           " />
         `).join('');
     } else {
-        imgBox.style.display = 'none';
-        imgBox.innerHTML = '';
+        imgBox.innerHTML = `
+          <div style="width:100%; height:130px; display:flex; align-items:center; justify-content:center; background:var(--clr-bg); border-radius:18px; border:2px dashed var(--clr-border); font-size:1.8rem;">📸</div>
+        `;
     }
-
-    document.getElementById('modalIcon').textContent        = s.petIcon || '🐾';
     document.getElementById('modalPetName').textContent     = s.petName;
     document.getElementById('modalDate').textContent        = '📅 ' + new Date(s.date).toLocaleDateString('en-US', {weekday:'short', day:'numeric', month:'long', year:'numeric'});
     document.getElementById('modalQty').textContent         = s.qty + (s.qty > 1 ? ' units' : ' unit');

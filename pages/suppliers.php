@@ -492,10 +492,10 @@ async function openPetModal(petId) {
         if (imgs && imgs.length > 0) {
             strip.innerHTML = imgs.map(src => `<img src="${src}" loading="lazy" />`).join('');
         } else {
-            strip.innerHTML = `<div class="img-placeholder">📸</div>`;
+            strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">📸</div>`;
         }
     } catch(e) {
-        strip.innerHTML = `<div class="img-placeholder">📸</div>`;
+        strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">📸</div>`;
     }
 }
 

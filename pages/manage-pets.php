@@ -461,15 +461,10 @@ async function openModal(idx) {
                 <img src="${src}" alt="${p.name}" loading="lazy" />
             `).join('');
         } else {
-            // Show icon placeholder if no photos uploaded
-            strip.innerHTML = `
-                <div class="img-placeholder">
-                    ${p.icon || '🐾'}
-                </div>
-            `;
+            strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">📸</div>`;
         }
     } catch(e) {
-        strip.innerHTML = `<div class="img-placeholder">${p.icon || '🐾'}</div>`;
+        strip.innerHTML = `<div class="img-placeholder" style="font-size:1.6rem; color:var(--clr-muted);">📸</div>`;
     }
 }
 

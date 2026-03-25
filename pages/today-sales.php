@@ -140,7 +140,6 @@ async function recordSale() {
     const sale = {
         petId: pId,
         petName: pet.name,
-        petIcon: pet.icon || '🐾',
         qty: qty,
         price: price,
         total: qty * price,
