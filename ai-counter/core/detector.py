@@ -19,10 +19,17 @@ class PetDetector:
     """
 
     def __init__(self):
-        logger.info(f"Loading YOLOv8 model from: {MODEL_PATH}")
-        # ultralytics auto-downloads yolov8n.pt on first use if the file doesn't exist
+        # Determine if we're using the custom brain or base brain 
+        is_custom = "best.pt" in str(MODEL_PATH)
+        brain_type = "🧠 CUSTOM BRAIN (Smarter)" if is_custom else "🥚 BASE BRAIN (Standard)"
+        
+        print(f"-----------------------------------")
+        print(f"  LOADING {brain_type}")
+        print(f"  Path: {MODEL_PATH}")
+        print(f"-----------------------------------")
+        
+        # Load model into memory
         self.model = YOLO(str(MODEL_PATH))
-        logger.info("✅ Model loaded successfully.")
 
     # ── Public ────────────────────────────────────────────────────────────────
 

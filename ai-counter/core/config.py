@@ -6,35 +6,26 @@
 
 from pathlib import Path
 
-# ─── Model path ───────────────────────────────────────────────
-# yolov8n.pt is auto-downloaded on first run.
-# After fine-tuning, replace with: Path(__file__).parent.parent / "models" / "best.pt"
-MODEL_PATH = Path(__file__).parent.parent / "models" / "yolov8n.pt"
+# ─── Model Selection ──────────────────────────────────────────
+# We prefer our custom-trained 'best.pt' brain if it exists.
+# Otherwise, we fall back to the base 'yolov8n.pt' brain.
+MODELS_DIR = Path(__file__).parent.parent / "models"
+MODEL_PATH = MODELS_DIR / "best.pt" if (MODELS_DIR / "best.pt").exists() else MODELS_DIR / "yolov8n.pt"
 
 # ─── Inference thresholds ─────────────────────────────────────
-CONFIDENCE_THRESHOLD = 0.40   # min 40% confidence
+CONFIDENCE_THRESHOLD = 0.15   # Lowered to 15% to catch newly learned animals!
 IOU_THRESHOLD        = 0.45   # NMS threshold
 
 # ─── Image size cap ───────────────────────────────────────────
 MAX_IMAGE_SIZE = 1280         # pixels (longest edge)
 
-# ─── COCO Class IDs that map to pet-shop animals ─────────────
-#
-# Standard COCO pre-trained IDs:
-#   14 = bird | 15 = cat | 16 = dog
-#
-# NOTE: "fish" and "rabbit" are NOT in the default COCO dataset.
-# They will work correctly only after you fine-tune the model.
-# See FINE_TUNING_GUIDE.md for step-by-step instructions.
-#
-# After fine-tuning, add your custom class IDs here, e.g.:
-#   88: "fish"
-#   89: "rabbit"
-#
+# ─── Class Mapping ────────────────────────────────────────────
+# Pre-trained COCO classes + New custom classes.
+# Note: When training from scratch, labels begin at 0.
 PET_CLASS_MAP: dict[int, str] = {
-    14: "bird",
-    15: "cat",
-    16: "dog",
-    # 88: "fish",       ← uncomment after fine-tuning
-    # 89: "rabbit",     ← uncomment after fine-tuning
+    0: "fish",      # Our newly trained class 
+    1: "rabbit",    # Secondary trained class
+    14: "bird",     # COCO legacy
+    15: "cat",      # COCO legacy
+    16: "dog",      # COCO legacy
 }

@@ -1,60 +1,135 @@
 """
 =============================================================
- train.py — AI Training / Fine-Tuning Script
+ train.py — AI Auto-Trainer (Human-in-the-Loop)
 =============================================================
- Usage:
-   1. Collect images from the 'feedback/' folder.
-   2. Annotate them (YOLO format) using Roboflow or LabelImg.
-   3. Place your dataset.yaml and data into 'ai-counter/dataset/'.
-   4. Run this script: python train.py
+ This script automatically converts your 'feedback/' folder
+ into a valid YOLO dataset and trains a new model.
 =============================================================
 """
 
 import os
-import sys
-from ultralytics import YOLO
+import json
+import shutil
+import yaml
+import cv2
 from pathlib import Path
+from ultralytics import YOLO
+
+# ─── Configuration ────────────────────────────────────────────
+BASE_DIR = Path(__file__).parent
+FEEDBACK_DIR = BASE_DIR / "feedback"
+DATASET_DIR = BASE_DIR / "auto_dataset"
+MODELS_DIR = BASE_DIR / "models"
+
+def generate_auto_dataset():
+    """Converts feedback JSON + JPG into YOLO format."""
+    print("📦 Building auto-dataset from feedback...")
+    
+    # Clean old dataset
+    if DATASET_DIR.exists():
+        shutil.rmtree(DATASET_DIR)
+    
+    (DATASET_DIR / "images").mkdir(parents=True)
+    (DATASET_DIR / "labels").mkdir(parents=True)
+
+    # 1. Get unique labels from feedback
+    labels = set()
+    feedback_files = list(FEEDBACK_DIR.glob("*.json"))
+    for f in feedback_files:
+        with f.open() as j:
+            data = json.load(j)
+            labels.add(data.get("correction", "animal").lower())
+    
+    label_map = {name: i for i, name in enumerate(sorted(list(labels)))}
+    
+    # 2. Use teacher model to find boxes (Pseudo-labeling)
+    teacher = YOLO(str(MODELS_DIR / "yolov8n.pt"))
+    
+    count = 0
+    for f in feedback_files:
+        fb_id = f.stem
+        img_path = FEEDBACK_DIR / f"{fb_id}.jpg"
+        if not img_path.exists(): continue
+        
+        with f.open() as j:
+            fb_data = json.load(j)
+            correct_label = fb_data.get("correction", "animal").lower()
+            class_id = label_map[correct_label]
+
+        # Run teacher to get box coordinates
+        results = teacher(str(img_path), verbose=False)
+        
+        # We save the boxes found by the teacher but with the NEW label
+        label_txt = DATASET_DIR / "labels" / f"{fb_id}.txt"
+        with label_txt.open("w") as lt:
+            found_any = False
+            for r in results:
+                for box in r.boxes:
+                    # YOLO format: class x_center y_center width height (normalized)
+                    xywhn = box.xywhn[0].tolist()
+                    lt.write(f"{class_id} {' '.join(map(str, xywhn))}\n")
+                    found_any = True
+            
+            # If teacher found nothing, we assume the whole center of the image is the object
+            if not found_any:
+                lt.write(f"{class_id} 0.5 0.5 0.8 0.8\n")
+
+        # Copy image to dataset
+        shutil.copy(img_path, DATASET_DIR / "images" / f"{fb_id}.jpg")
+        count += 1
+
+    # 3. Create data.yaml
+    data_yaml = {
+        "path": str(DATASET_DIR.absolute()),
+        "train": "images",
+        "val": "images", # We use same for small datasets
+        "names": {v: k for k, v in label_map.items()}
+    }
+    
+    yaml_path = BASE_DIR / "auto_data.yaml"
+    with yaml_path.open("w") as yf:
+        yaml.dump(data_yaml, yf)
+    
+    return yaml_path, count
 
 def train_new_model():
-    print("\n🐾 Starting Pet Shop AI Training...")
+    """Main entry point for training."""
+    print("\n🐾 Starting Pet Shop AI Evolution...")
     print("─────────────────────────────────────────────────────────────")
-
-    # 1. Load the base model (Start from pre-trained weights)
-    # yolov8n.pt is the fastest and best for mobile phones.
-    model_path = Path("models/yolov8n.pt")
-    if not model_path.exists():
-        print(f"[!] Downloading base weights to {model_path}...")
     
-    model = YOLO(str(model_path))
+    try:
+        # 1. Build dataset
+        yaml_path, count = generate_auto_dataset()
+        if count == 0:
+            print("[ERROR] No images found in feedback/ folder.")
+            return
 
-    # 2. Configure Dataset
-    # You MUST create 'data.yaml' first after annotating your photos.
-    # See README.md for instructions on how to use Roboflow.
-    dataset_config = "data.yaml"
-    
-    if not os.path.exists(dataset_config):
-        print(f"\n[ERROR] '{dataset_config}' not found!")
-        print("Please place your annotated YOLO dataset and data.yaml in this folder.")
-        print("See README.md for the step-by-step guide.")
-        return
+        # 2. Load model
+        model = YOLO(str(MODELS_DIR / "yolov8n.pt"))
 
-    # 3. Train the model
-    # epochs=50 is standard for a small dataset (100-500 images).
-    # imgsz=640 is standard high-resolution for YOLOv8.
-    print(f"[STEP] Re-training the brain using '{dataset_config}'...")
-    results = model.train(
-        data=dataset_config,
-        epochs=50,
-        imgsz=640,
-        plots=True,
-        cache=True,
-        verbose=True
-    )
+        # 3. Train
+        # Small epochs (10-20) for quick feedback loop
+        model.train(
+            data=str(yaml_path),
+            epochs=20,
+            imgsz=640,
+            project=str(BASE_DIR / "runs"),
+            name="evolution",
+            exist_ok=True,
+            verbose=True
+        )
 
-    print("\n✅ TRAINING COMPLETE!")
-    print("─────────────────────────────────────────────────────────────")
-    print(f"Your new brain is saved in: runs/detect/train/weights/best.pt")
-    print("To USE it, copy 'best.pt' into 'models/' and update 'core/config.py'.")
+        # 4. Deploy results (Copy best weights to models)
+        best_pt = BASE_DIR / "runs" / "evolution" / "weights" / "best.pt"
+        if best_pt.exists():
+            shutil.copy(best_pt, MODELS_DIR / "best.pt")
+            print(f"\n✅ SUCCESS! New brain 'best.pt' created from {count} feedback images.")
+        else:
+            print("\n[ERROR] Training finished but could not find weights.")
+
+    except Exception as e:
+        print(f"\n[FATAL ERROR] {str(e)}")
+        raise e
 
 if __name__ == "__main__":
     train_new_model()
