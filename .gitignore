@@ -16,6 +16,9 @@ ai-counter/__pycache__/
 ai-counter/models/*.pt
 ai-counter/models/*.pt.cache
 ai-counter/feedback/
+ai-counter/runs/
+ai-counter/auto_dataset/
+ai-counter/auto_data.yaml
 *.pyc
 
 # Database
