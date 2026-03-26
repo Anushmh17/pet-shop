@@ -326,6 +326,23 @@ if (!isset($_SESSION['admin_auth'])) {
 
     <!-- Per-detection list -->
     <div class="det-list" id="detList"></div>
+
+    <!-- Correction / Feedback Box -->
+    <div id="correctionBox" style="padding:16px; border-top:1.5px solid var(--clr-border); background:var(--clr-bg);">
+      <div class="det-list-title">✍️ Correction / Comment</div>
+      <div style="font-size:.72rem; color:var(--clr-muted); margin-bottom:10px; font-weight:600;">
+        Are these not birds? Type the correct name (e.g. Goldfish) to help the AI learn.
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="correctionInput" placeholder="Enter correct animal name..." 
+               style="flex:1; padding:10px; border-radius:var(--r-md); border:1.5px solid var(--clr-border); font-size:.85rem; font-weight:600;" />
+        <button id="submitCorrectionBtn" onclick="submitCorrection()" 
+                style="padding:0 16px; background:#6c5ce7; color:#fff; border:none; border-radius:var(--r-md); font-weight:800; font-size:.75rem;">
+          Submit
+        </button>
+      </div>
+      <div id="correctionStatus" style="margin-top:8px; font-size:.7rem; font-weight:700;"></div>
+    </div>
   </div>
 
   <!-- Info box -->
@@ -514,6 +531,51 @@ function renderResults(data) {
 
   // Scroll to results
   card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ─── Submit Correction ──────────────────────────────────────
+async function submitCorrection() {
+  const inputEl  = document.getElementById('correctionInput');
+  const statusEl = document.getElementById('correctionStatus');
+  const btn      = document.getElementById('submitCorrectionBtn');
+  const label    = inputEl.value.trim();
+  const img      = document.getElementById('previewImg');
+
+  if (!label) {
+    showToast('Please enter a name first.');
+    return;
+  }
+
+  // Visual feedback
+  btn.disabled         = true;
+  statusEl.textContent = '💾 Saving feedback...';
+  statusEl.style.color = '#6c5ce7';
+
+  try {
+    const res = await fetch(`${AI_API_BASE}/submit-correction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_data: img.src,   // uses the base64 from the preview
+        label: label
+      })
+    });
+
+    if (!res.ok) throw new Error('Failed to save correction');
+
+    statusEl.textContent = '✅ Thank you! Feedback saved for the next AI update.';
+    statusEl.style.color = '#00b894';
+    inputEl.value        = '';
+    
+    // Disable after success
+    btn.style.opacity = '0.5';
+    btn.onclick       = null;
+    
+  } catch (err) {
+    statusEl.textContent = '❌ Error saving feedback.';
+    statusEl.style.color = 'var(--clr-danger)';
+    btn.disabled         = false;
+  }
 }
 
 // ─── Loading state helpers ───────────────────────────────────

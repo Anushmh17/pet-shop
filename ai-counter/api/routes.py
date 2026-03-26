@@ -10,13 +10,54 @@
 
 import tempfile
 import os
+import json
+import uuid
+import base64
+from pathlib import Path
+from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 
 from core.detector import PetDetector
 
+# ─── New: Feedback directory (for future training) ───────────────────────────
+FEEDBACK_DIR = Path(__file__).parent.parent / "feedback"
+FEEDBACK_DIR.mkdir(exist_ok=True)
+
+class FeedbackRequest(BaseModel):
+    image_data: str   # base64 encoded image
+    label: str        # user correction (e.g. "Goldfish")
+
 # ─── Router ───────────────────────────────────────────────────────────────────
 router = APIRouter()
+
+@router.post("/submit-correction")
+async def submit_correction(req: FeedbackRequest):
+    """
+    Saves the image (base64) and the user's corrected label
+    into the 'feedback/' folder for human-in-the-loop learning.
+    """
+    try:
+        # Generate unique ID (first part of UUID)
+        fb_id = str(uuid.uuid4()).split('-')[0]
+        
+        # Decode image (format: "data:image/jpeg;base64,xxxx")
+        header, encoded = req.image_data.split(",", 1)
+        image_bytes = base64.b64decode(encoded)
+        
+        # Save image
+        img_path = FEEDBACK_DIR / f"{fb_id}.jpg"
+        img_path.write_bytes(image_bytes)
+        
+        # Save label metadata
+        meta_path = FEEDBACK_DIR / f"{fb_id}.json"
+        with meta_path.open("w") as f:
+            json.dump({"id": fb_id, "correction": req.label}, f)
+            
+        return {"status": "success", "message": "Feedback saved! We'll use this to teach the AI."}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ─── Singleton detector (model loaded once at startup) ────────────────────────
 # Loading YOLOv8 is expensive (~1-2 s). We keep one instance alive for the
@@ -63,7 +104,8 @@ async def detect_and_count(image: UploadFile = File(...)):
     suffix = ".jpg" if "jpeg" in (image.content_type or "") else ".png"
     tmp_path: str = ""
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        # Use mode 'wb' explicitly for writing bytes
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode='wb') as tmp:
             contents = await image.read()
             tmp.write(contents)
             tmp_path = tmp.name
