@@ -548,7 +548,7 @@ function renderResults(data) {
         <div class="species-card">
           <div class="species-icon">${ANIMAL_EMOJI[label] || '🐾'}</div>
           <div class="species-info">
-            <div class="s-name">${label}</div>
+            <div class="s-name">${label.charAt(0).toUpperCase() + label.slice(1)}</div>
             <div class="s-count">${count}</div>
           </div>
         </div>
@@ -562,7 +562,7 @@ function renderResults(data) {
       <div class="det-list-title">🔍 Individual Detections (${dets.length})</div>
       ${dets.map((d, i) => `
         <div class="det-item">
-          <span class="di-label">${ANIMAL_EMOJI[d.label] || '🐾'} ${d.label}</span>
+          <span class="di-label">${ANIMAL_EMOJI[d.label] || '🐾'} ${d.label.charAt(0).toUpperCase() + d.label.slice(1)}</span>
           <div style="display:flex; align-items:center; gap:8px;">
             <span class="di-conf">${Math.round(d.confidence * 100)}% conf.</span>
             <span class="di-badge">#${i + 1}</span>
