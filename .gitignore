@@ -15,6 +15,7 @@ ai-counter/venv/
 ai-counter/__pycache__/
 ai-counter/models/*.pt
 ai-counter/models/*.pt.cache
+ai-counter/feedback/
 *.pyc
 
 # Database
