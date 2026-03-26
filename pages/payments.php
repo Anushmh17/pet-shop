@@ -74,7 +74,7 @@
 
 <div id="ptr-indicator"><div class="ptr-spinner"></div></div>
 
-<nav class="top-nav" style="position:sticky; top:0; z-index:1000; background:#fff; border-bottom:1.5px solid var(--clr-border);">
+<nav class="top-nav" style="position:sticky; top:0; z-index:1000; border-bottom:1.5px solid var(--clr-border);">
   <a href="index.php" class="nav-back">&#8592;</a>
   <span class="nav-title">Manage Payments</span>
   <div class="nav-spacer"></div>
@@ -106,8 +106,9 @@
     <input type="hidden" id="editPetId">
 
     <div class="form-group">
-        <label class="form-label">Payment Amount (Rs.) *</label>
-        <input type="number" id="editAmount" class="form-control" step="0.01" />
+        <!-- Amount is historical cost paid — making it editable would mutate financial records -->
+        <label class="form-label">Payment Amount (Rs.) <span style="font-size:.7rem; color:var(--clr-muted); text-transform:none; font-weight:600;">(read-only)</span></label>
+        <input type="number" id="editAmount" class="form-control" step="0.01" readonly style="background:var(--clr-bg); color:var(--clr-muted); cursor:not-allowed;" />
     </div>
 
     <div class="form-group">
@@ -215,7 +216,10 @@ function openEditModal(data) {
 
 function toggleEditDue() {
     const s = document.getElementById('editStatus').value;
-    document.getElementById('editDueGroup').style.display = (s === 'Pending') ? 'block' : 'none';
+    const dueGroup = document.getElementById('editDueGroup');
+    dueGroup.style.display = (s === 'Pending') ? 'block' : 'none';
+    // Clear due date when marking Paid — prevents stale date causing confusion if toggled back
+    if (s === 'Paid') document.getElementById('editDueDate').value = '';
 }
 
 function closeEditModal() {
@@ -252,6 +256,31 @@ function showToast(msg) {
     t.textContent = msg; t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2400);
 }
+
+// Pull-to-Refresh — was wired in HTML (ptr-indicator present) but had no JS listeners
+let _ptrStart = 0, _ptrDist = 0, _ptrActive = false;
+window.addEventListener('touchstart', e => { if(window.scrollY === 0){ _ptrStart = e.touches[0].pageY; _ptrActive = false; } }, {passive:true});
+window.addEventListener('touchmove', e => {
+    _ptrDist = (e.touches[0].pageY - _ptrStart) * 0.4;
+    if(_ptrDist > 0 && window.scrollY === 0){
+        _ptrActive = true;
+        document.body.classList.add('ptr-pulling');
+        document.getElementById('content-wrapper').style.transform = `translateY(${Math.min(_ptrDist, 80)}px)`;
+    }
+}, {passive:true});
+window.addEventListener('touchend', async () => {
+    if(_ptrActive && _ptrDist >= 60){
+        document.body.classList.remove('ptr-pulling');
+        document.body.classList.add('ptr-loading');
+        document.getElementById('content-wrapper').style.transform = 'translateY(40px)';
+        await loadPayments();
+        setTimeout(() => { document.body.classList.remove('ptr-loading'); document.getElementById('content-wrapper').style.transform = ''; }, 500);
+    } else {
+        document.body.classList.remove('ptr-pulling', 'ptr-loading');
+        document.getElementById('content-wrapper').style.transform = '';
+    }
+    _ptrActive = false; _ptrDist = 0;
+}, {passive:true});
 </script>
 </body>
 </html>

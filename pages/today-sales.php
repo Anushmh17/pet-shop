@@ -19,7 +19,7 @@
 <div id="ptr-indicator"><div class="ptr-spinner"></div></div>
 
 <!-- ===== TOP NAV ===== -->
-<nav class="top-nav" style="position:sticky; top:0; z-index:1000; background:#fff;">
+<nav class="top-nav" style="position:sticky; top:0; z-index:1000;">
   <a href="index.php" class="nav-back" id="backBtn" aria-label="Go back">&#8592;</a>
   <span class="nav-title">Today's Sales</span>
   <div class="nav-spacer"></div>
@@ -129,13 +129,29 @@ async function recordSale() {
     const pId   = parseInt(document.getElementById('selectPet').value);
     const qty   = parseInt(document.getElementById('saleQty').value) || 0;
     const price = parseFloat(document.getElementById('salePrice').value) || 0;
+    const priceEl = document.getElementById('salePrice');
+    const qtyEl   = document.getElementById('saleQty');
 
     if(!pId) { showToast('Select a pet'); return; }
     if(qty <= 0) { showToast('Enter valid quantity'); return; }
+    // Price must be > 0 — a ₹0 sale silently corrupts all revenue totals
+    if(price <= 0) {
+        showToast('Price must be greater than 0');
+        priceEl.style.borderColor = 'var(--clr-danger)';
+        priceEl.focus();
+        return;
+    }
+    priceEl.style.borderColor = '';
 
     const pets = await DB.getPets();
     const pet = pets.find(p => p.id === pId);
-    if(pet.qty < qty) { showToast('Not enough stock! Available: ' + pet.qty); return; }
+    if(pet.qty < qty) {
+        showToast('Not enough stock! Available: ' + pet.qty);
+        // Highlight the quantity field so user knows which value to correct
+        qtyEl.style.borderColor = 'var(--clr-danger)';
+        return;
+    }
+    qtyEl.style.borderColor = '';
 
     const sale = {
         petId: pId,
@@ -236,6 +252,9 @@ window.addEventListener('touchend', async () => {
         document.body.classList.remove('ptr-pulling');
         document.body.classList.add('ptr-loading');
         document.getElementById('content-wrapper').style.transform = 'translateY(40px)';
+        // Also refresh the pet dropdown so quantities stay current after a PTR
+        document.getElementById('selectPet').innerHTML = '<option value="">— Select Pet —</option>';
+        await loadPetList();
         await renderTodaySales(); 
         setTimeout(() => {
             document.body.classList.remove('ptr-loading');

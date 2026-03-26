@@ -114,13 +114,20 @@
     .det-value { font-size: 1rem; font-weight: 800; color: var(--clr-text); }
     .det-cell.accent .det-value { color: var(--clr-primary); }
     .det-cell.wide { grid-column: 1 / -1; }
+    /* Truncate long dealer names in nav title to prevent overflow on small screens */
+    .top-nav .nav-title {
+      max-width: calc(100% - 110px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body id="page-body">
 
 <div id="ptr-indicator"><div class="ptr-spinner"></div></div>
 
-<nav class="top-nav" style="position:sticky; top:0; z-index:1000; background:#fff; border-bottom:1.5px solid var(--clr-border);">
+<nav class="top-nav" style="position:sticky; top:0; z-index:1000; border-bottom:1.5px solid var(--clr-border);">
   <button class="nav-back" id="backBtn" onclick="handleBack()">&#8592;</button>
   <span class="nav-title" id="pageTitle">Suppliers</span>
   <div class="nav-spacer"></div>
@@ -495,6 +502,8 @@ async function openPetModal(petId) {
     const strip = document.getElementById('modalImgStrip');
     strip.innerHTML = '<div class="img-placeholder">⏳</div>';
     document.getElementById('petModal').classList.add('open');
+    // Lock background scroll — matches behaviour of all other modals in the app
+    document.body.style.overflow = 'hidden';
 
     try {
         const imgs = await DB.getPetImages(petId);
@@ -510,6 +519,7 @@ async function openPetModal(petId) {
 
 function closePetModal() {
     document.getElementById('petModal').classList.remove('open');
+    document.body.style.overflow = '';
 }
 
 function showToast(msg) {

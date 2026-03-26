@@ -323,11 +323,12 @@ function syncPaymentStatus() {
     const source = document.getElementById('petSource').value;
     if (source !== 'Customer Supplied') return;
 
-    const cost = parseFloat(document.getElementById('petCost').value) || 0;
+    // Payment status is based solely on csCostPaid (amount owed to the customer).
+    // petCost is the shop's internal cost price and must NOT drive this logic.
     const paid = parseFloat(document.getElementById('csCostPaid').value) || 0;
     const statusEl = document.getElementById('csPayStatus');
 
-    if (paid >= cost && cost > 0) {
+    if (paid > 0) {
         statusEl.value = 'Paid';
     } else {
         statusEl.value = 'Pending';
@@ -395,7 +396,12 @@ function toggleCustomerFields() {
 
 function toggleDueDate() {
   const status = document.getElementById('csPayStatus').value;
+  const dueDateEl = document.getElementById('csDueDate');
   document.getElementById('csDueDateGroup').style.display = (status === 'Pending') ? 'block' : 'none';
+  // Enforce future-only due dates — past dates would immediately show as overdue on entry
+  if (status === 'Pending') {
+    dueDateEl.min = new Date().toLocaleDateString('en-CA');
+  }
 }
 
 function handleNICPhoto(e) {
@@ -551,6 +557,8 @@ async function handleCategoryChange() {
 function resetForm() {
   document.getElementById('successModal').classList.remove('open');
   document.querySelectorAll('input:not([type="radio"])').forEach(i => i.value = '');
+  // Also clear all textarea fields — they were not reset, causing notes to persist after "Add Another"
+  document.querySelectorAll('textarea').forEach(t => t.value = '');
   document.getElementById('petCategory').value = '';
   document.getElementById('petSource').value = 'Dealer Supplied';
   document.getElementById('petStock').value = '1';

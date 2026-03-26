@@ -120,7 +120,7 @@ if (!isset($_SESSION['admin_auth'])) {
     <div class="greeting-sub" id="todayDate"></div>
   </div>
 
-  <div id="notif-area" style="display:none;"></div>
+  <!-- notif-area removed: legacy element, no longer used -->
 
   <!-- Notification Banner (REMOVED) -->
 
@@ -181,7 +181,7 @@ if (!isset($_SESSION['admin_auth'])) {
   <section class="overview-section" style="margin-top:20px; margin-bottom: 20px;">
     <div class="flex-between">
       <h2 class="section-title" style="margin:0;">Stock Alerts</h2>
-      <a href="manage-pets.php" style="font-size:.7rem; color:var(--clr-primary); font-weight:800; text-decoration:none;">VIEW ALL ➔</a>
+      <a href="manage-pets.php" style="font-size:.7rem; color:var(--clr-primary); font-weight:800; text-decoration:none;">MANAGE INVENTORY ➔</a>
     </div>
     <div id="stockAlertsList" style="margin-top:15px;"></div>
     <div id="noAlerts" class="empty-state" style="display:none; padding:40px 0;"><p>Inventory looking healthy!</p></div>
@@ -353,8 +353,7 @@ function toggleNotifPopup(e) {
   }
 }
 
-// Keeping a legacy empty function to prevent errors if called elsewhere
-async function loadPaymentNotifications() { document.getElementById('notif-area').innerHTML = ''; }
+// Legacy function removed — notif-area div no longer exists in DOM
 
 async function loadStockAlerts() {
   const list = document.getElementById('stockAlertsList');
@@ -395,6 +394,8 @@ async function loadStockAlerts() {
 }
 
 async function stopAlert(petId) {
+  // Confirmation required — stopping an alert is persistent and has no undo
+  if (!confirm('Stop this stock alert? It will not fire again until re-enabled from inventory.')) return;
   const res = await DB.toggleAlert(petId, true);
   if (!res || res.error) { showToast('Sync failed!'); return; }
   showToast('Alert stopped');

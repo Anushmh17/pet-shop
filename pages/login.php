@@ -144,6 +144,13 @@ if (isset($_SESSION['admin_auth'])) {
 </div>
 
 <script>
+// Disable Sign In until both fields have values — avoids confusing blank-field error on mobile
+function checkLoginFields() {
+    const user = document.getElementById('username').value.trim();
+    const pass = document.getElementById('password').value;
+    document.getElementById('loginBtn').disabled = !user || !pass;
+}
+
 async function handleLogin(e) {
     e.preventDefault();
     const user = document.getElementById('username').value.trim();
@@ -175,6 +182,12 @@ async function handleLogin(e) {
         btn.textContent = 'Sign In';
     }
 }
+// Wire field listeners and initialise disabled state on load
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('username').addEventListener('input', checkLoginFields);
+    document.getElementById('password').addEventListener('input', checkLoginFields);
+    checkLoginFields();
+});
 </script>
 
 </body>

@@ -172,14 +172,17 @@
 </head>
 <body id="page-body">
 
+<div id="ptr-indicator"><div class="ptr-spinner"></div></div>
+
 <!-- ===== TOP NAV ===== -->
-<nav class="top-nav" style="position:sticky; top:0; z-index:1000; background:#fff; border-bottom:1px solid var(--clr-border);">
+<nav class="top-nav" style="position:sticky; top:0; z-index:1000; border-bottom:1px solid var(--clr-border);">
   <button class="nav-back" id="backBtn" onclick="goBack()" aria-label="Go back">&#8592;</button>
   <span class="nav-title" id="navTitle">Categories</span>
   <div class="nav-spacer"></div>
 </nav>
 
 <!-- ===== MAIN CONTENT ===== -->
+<div id="content-wrapper">
 <div class="app-wrapper" style="padding-top: var(--sp-md);">
 
   <!-- Breadcrumb -->
@@ -192,7 +195,8 @@
     <!-- Injected by JS -->
   </div>
 
-</div>
+</div><!-- /app-wrapper -->
+</div><!-- /content-wrapper -->
 
 <!-- ===== PET DETAIL MODAL ===== -->
 <div id="petModal" onclick="handleModalBg(event)">
@@ -298,6 +302,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   _allPets = await DB.getPets();
   showCategories();
 });
+
+/* ============================================================
+   PULL-TO-REFRESH — refreshes category counts and stock dots
+   ============================================================ */
+let _catPtrStart = 0, _catPtrDist = 0, _catPulling = false;
+window.addEventListener('touchstart', e => { if(window.scrollY === 0){ _catPtrStart = e.touches[0].pageY; _catPulling = false; } }, {passive:true});
+window.addEventListener('touchmove', e => {
+  _catPtrDist = (e.touches[0].pageY - _catPtrStart) * 0.4;
+  if(_catPtrDist > 0 && window.scrollY === 0){
+    _catPulling = true;
+    document.body.classList.add('ptr-pulling');
+    document.getElementById('content-wrapper').style.transform = `translateY(${Math.min(_catPtrDist, 80)}px)`;
+  }
+}, {passive:true});
+window.addEventListener('touchend', async () => {
+  if(_catPulling && _catPtrDist >= 60){
+    document.body.classList.remove('ptr-pulling');
+    document.body.classList.add('ptr-loading');
+    document.getElementById('content-wrapper').style.transform = 'translateY(40px)';
+    _allPets = await DB.getPets();
+    if (_currentView === 'pets' && _currentCat) showPets(_currentCat);
+    else showCategories();
+    setTimeout(() => { document.body.classList.remove('ptr-loading'); document.getElementById('content-wrapper').style.transform = ''; }, 500);
+  } else {
+    document.body.classList.remove('ptr-pulling', 'ptr-loading');
+    document.getElementById('content-wrapper').style.transform = '';
+  }
+  _catPulling = false; _catPtrDist = 0;
+}, {passive:true});
 
 /* ============================================================
    NAV BACK

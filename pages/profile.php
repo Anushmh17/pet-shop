@@ -151,7 +151,7 @@ if (!isset($_SESSION['admin_auth'])) {
   <div class="settings-section">
     <!-- Appearance -->
     <div class="settings-item">
-      <div class="item-icon">🌖</div>
+      <div class="item-icon" id="themeIcon">🌖</div>
       <div class="item-label">Appearance</div>
       <div class="segmented-control" style="width: 140px;">
         <div class="segment" id="theme-light" onclick="setTheme('light')">Light</div>
@@ -204,6 +204,8 @@ async function updatePassword() {
     
     if(!curr || !n1 || !n2) return showToast('Fill all password fields');
     if(n1 !== n2) return showToast('Passwords do not match');
+    // Enforce minimum password strength
+    if(n1.length < 8) return showToast('New password must be at least 8 characters');
     
     try {
         const res = await DB.changePassword(curr, n1);
@@ -243,6 +245,9 @@ function updateThemeUI() {
     const theme = localStorage.getItem('app-theme') || 'light';
     document.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
     document.getElementById('theme-' + theme).classList.add('active');
+    // Sync the appearance icon to reflect the currently active theme
+    const icon = document.getElementById('themeIcon');
+    if (icon) icon.textContent = theme === 'dark' ? '🌙' : '🌞';
 }
 
 document.addEventListener('DOMContentLoaded', updateThemeUI);

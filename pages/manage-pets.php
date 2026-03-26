@@ -163,11 +163,11 @@
       line-height: 1.5;
     }
 
-    /* Close button */
+    /* Close button — right side to match all other modals in the app */
     #modalCloseBtn {
       position: absolute;
       top: 18px;
-      left: 18px;
+      right: 18px;
       background: var(--clr-bg);
       border: none;
       border-radius: 50%;
@@ -189,7 +189,7 @@
 <div id="ptr-indicator"><div class="ptr-spinner"></div></div>
 
 <!-- ===== TOP NAV ===== -->
-<nav class="top-nav" style="position:sticky; top:0; z-index:1000; background:#fff; border-bottom:1px solid var(--clr-border);">
+<nav class="top-nav" style="position:sticky; top:0; z-index:1000; border-bottom:1px solid var(--clr-border);">
   <a href="index.php" class="nav-back" id="backBtn" aria-label="Go back">&#8592;</a>
   <span class="nav-title">Manage Inventory</span>
   <div class="nav-spacer"></div>
@@ -349,9 +349,10 @@ async function renderPets() {
     list.innerHTML = allPets.map((p, idx) => {
         const isLow = parseInt(p.qty) <= parseInt(p.alert_level);
         if(isLow && !p.stop_alert) lowStockCount++;
-        const statusColor = isLow ? 'var(--clr-danger)' : 'var(--clr-primary)';
-        const statusBg    = isLow ? 'var(--clr-danger-lt)' : 'var(--clr-primary-lt)';
-        const statusLabel = isLow ? 'LOW STOCK' : 'HEALTHY';
+        const statusColor = isLow && !p.stop_alert ? 'var(--clr-danger)' : 'var(--clr-primary)';
+        const statusBg    = isLow && !p.stop_alert ? 'var(--clr-danger-lt)' : 'var(--clr-primary-lt)';
+        // Distinguish between active low stock vs. silenced alerts vs. healthy
+        const statusLabel = isLow && !p.stop_alert ? 'LOW STOCK' : (p.stop_alert && isLow ? 'ALERT OFF' : 'HEALTHY');
 
         const imgHtml = p.primaryImage 
             ? `<img src="${p.primaryImage}" onclick="event.stopPropagation(); maximizeImage(this.src)" style="width:100%; height:100%; object-fit:cover; cursor:zoom-in;" />`

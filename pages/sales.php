@@ -19,7 +19,7 @@
 <div id="ptr-indicator"><div class="ptr-spinner"></div></div>
 
 <!-- ===== TOP NAV ===== -->
-<nav class="top-nav" style="position:sticky; top:0; z-index:1000; background:#fff;">
+<nav class="top-nav" style="position:sticky; top:0; z-index:1000;">
   <a href="index.php" class="nav-back" id="backBtn" aria-label="Go back">&#8592;</a>
   <span class="nav-title">Sales Overview</span>
   <div class="nav-spacer"></div>
@@ -35,10 +35,10 @@
     
     <!-- Quick Select Pills -->
     <div style="display:flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch;">
-        <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('today')">Today</button>
-        <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('thisWeek')">This Week</button>
-        <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('thisMonth')">This Month</button>
-        <button class="btn btn-sm" style="background:#fff; color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('lastMonth')">Last Month</button>
+        <button class="btn btn-sm" style="background:var(--clr-surface); color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('today')">Today</button>
+        <button class="btn btn-sm" style="background:var(--clr-surface); color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('thisWeek')">This Week</button>
+        <button class="btn btn-sm" style="background:var(--clr-surface); color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('thisMonth')">This Month</button>
+        <button class="btn btn-sm" style="background:var(--clr-surface); color:var(--clr-muted); border:1.5px solid var(--clr-border); padding:6px 14px; border-radius:100px; font-weight:700; white-space:nowrap;" onclick="setQuickRange('lastMonth')">Last Month</button>
     </div>
 
     <div style="display:flex; gap: var(--sp-sm); align-items:center; flex-wrap:wrap; background: var(--clr-bg); padding: 15px; border-radius: 18px; border: 1px solid var(--clr-border);">
@@ -74,7 +74,7 @@
   <!-- Revenue Trend Chart -->
   <section class="overview-section" style="margin-bottom: var(--sp-lg);">
     <h2 class="section-title">Revenue Trend</h2>
-    <div class="chart-wrapper" style="padding: 15px; background: #fff; border: 1.5px solid var(--clr-border); border-radius: 20px;">
+    <div class="chart-wrapper" style="padding: 15px; border-radius: 20px;">
         <div id="revenueChartWrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;">
             <div id="revenueChart" style="height:140px; display:flex; align-items:flex-end; gap:8px; min-width:100%; width:max-content; padding-top:20px;"></div>
             <div id="chartLabels" style="display:flex; gap:8px; margin-top:8px; border-top:1px solid var(--clr-border); padding-top:8px;"></div>
@@ -107,7 +107,7 @@
   background:rgba(0,0,0,.45); align-items:flex-end; justify-content:center;
 " onclick="closeSaleModal(event)">
   <div id="saleModalBox" style="
-    background:#fff; border-radius:24px 24px 0 0;
+    background:var(--clr-surface); border-radius:24px 24px 0 0;
     width:100%; max-width:520px;
     padding:24px 20px 36px;
     animation: modalIn .28s ease both;
@@ -208,7 +208,8 @@ function highlightActiveBtn(mode) {
             b.style.color = '#fff';
             b.style.borderColor = 'var(--clr-primary)';
         } else {
-            b.style.background = '#fff';
+            // Use CSS variable so inactive pills respect dark mode
+            b.style.background = 'var(--clr-surface)';
             b.style.color = 'var(--clr-muted)';
             b.style.borderColor = 'var(--clr-border)';
         }
@@ -301,15 +302,16 @@ async function openSaleModal(idx) {
     }
     document.getElementById('modalPetName').textContent     = s.petName;
     document.getElementById('modalDate').textContent        = '📅 ' + new Date(s.date).toLocaleDateString('en-US', {weekday:'short', day:'numeric', month:'long', year:'numeric'});
-    document.getElementById('modalQty').textContent         = (s.category ? s.category.toUpperCase() + ' • ' : '') + s.qty + (s.qty > 1 ? ' units' : ' unit');
+    // Qty stat card shows only the number — category is moved to the extra info row below
+    document.getElementById('modalQty').textContent         = s.qty + (s.qty > 1 ? ' units' : ' unit');
     document.getElementById('modalUnitPrice').textContent   = 'Rs. ' + (s.price || (s.total / s.qty)).toLocaleString('en-IN');
     document.getElementById('modalTotal').textContent       = 'Rs. ' + s.total.toLocaleString('en-IN');
     
     const extra = [];
-    if (pet) {
-        if (pet.category) extra.push('🏷 Category: ' + pet.category.charAt(0).toUpperCase() + pet.category.slice(1));
-        if (pet.source)   extra.push('📦 Source: ' + pet.source);
-    }
+    // Use sale record category as fallback if pet has since been deleted
+    const catDisplay = (pet && pet.category) ? pet.category : s.category;
+    if (catDisplay) extra.push('🏷 Category: ' + catDisplay.charAt(0).toUpperCase() + catDisplay.slice(1));
+    if (pet && pet.source) extra.push('📦 Source: ' + pet.source);
     document.getElementById('modalExtra').innerHTML = extra.join('&nbsp;&nbsp;|&nbsp;&nbsp;');
 
     const modal = document.getElementById('saleModal');

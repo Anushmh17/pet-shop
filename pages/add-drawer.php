@@ -472,12 +472,15 @@ function renderUI() {
   // Cash Added
   cashAddedInput.value = drawerState.added || (drawerState.added === 0 ? '' : drawerState.added);
 
-  // Spent History
+  // Spent History — each entry gets a remove button to allow correcting data-entry errors
   const history = document.getElementById('spentHistory');
   history.innerHTML = drawerState.spentEntries.map((e, idx) => `
     <div class="spent-entry-pill">
       <span>${e.reason}</span>
-      <span>Rs. ${e.amt.toLocaleString('en-IN')}</span>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span>Rs. ${e.amt.toLocaleString('en-IN')}</span>
+        <button onclick="removeSpentEntry(${idx})" style="background:transparent; color:inherit; border:none; font-size:.9rem; cursor:pointer; padding:0 2px; font-weight:800; line-height:1;" title="Remove this entry">&times;</button>
+      </div>
     </div>
   `).join('');
 
@@ -495,10 +498,14 @@ function calc() {
 
   const fmt = n => 'Rs. ' + Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
-  document.getElementById('closingDisplay').textContent = fmt(closing);
-  document.getElementById('bd-opening').textContent     = fmt(opening);
-  document.getElementById('bd-added').textContent       = fmt(added);
-  document.getElementById('bd-spent').textContent       = fmt(spent);
+  document.getElementById('bd-opening').textContent = fmt(opening);
+  document.getElementById('bd-added').textContent   = fmt(added);
+  document.getElementById('bd-spent').textContent   = fmt(spent);
+
+  // Show closing in red when negative — signals that cashAdded has been reduced below spent total
+  const closingEl = document.getElementById('closingDisplay');
+  closingEl.textContent = (closing < 0 ? '-' : '') + fmt(closing);
+  closingEl.style.color = closing < 0 ? '#ee6b6b' : '#fff';
 
   const pillWrap = document.getElementById('netPillWrap');
   let cls, icon, label;
@@ -518,6 +525,11 @@ async function saveDrawer() {
   const spent   = getTotalSpent();
   const closing = drawerState.opening + added - spent;
 
+  // Block saving if closing balance is negative — indicates cashAdded was reduced below spent total
+  if (closing < 0) {
+    showToast('Cannot save: closing balance is negative ⚠️'); return;
+  }
+
   const res = await DB.saveDrawerEntries(date, {
     openingBalance: drawerState.opening,
     cashAdded:      added,
@@ -535,6 +547,12 @@ function stamp() {
   const now = new Date();
   document.getElementById('lastSync').textContent =
     'Last Synced: ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+// Allows removing a spent entry before saving — corrects accidental entries
+function removeSpentEntry(idx) {
+  drawerState.spentEntries.splice(idx, 1);
+  renderUI();
 }
 
 function showToast(msg) {
