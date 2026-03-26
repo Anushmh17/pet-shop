@@ -527,7 +527,10 @@ function renderResults(data) {
     detList.innerHTML = '';
   }
 
+  // Ensure results card and correction box are always visible after analysis
   card.classList.add('visible');
+  document.getElementById('correctionBox').style.display = 'block';
+  document.getElementById('correctionStatus').textContent = '';
 
   // Scroll to results
   card.scrollIntoView({ behavior: 'smooth', block: 'start' });
