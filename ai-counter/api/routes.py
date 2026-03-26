@@ -78,10 +78,16 @@ async def trigger_training(background_tasks: BackgroundTasks):
 @router.get("/train/status")
 async def get_training_status():
     """Get the current state of the 'Self-Learning' process."""
-    return {
-        "is_training": _is_training,
-        "last_result": _last_training_result
-    }
+    status_file = Path(__file__).parent.parent / "training_status.json"
+    
+    if not status_file.exists():
+        return {"status": "idle", "progress": 0, "message": "Ready to learn!"}
+
+    try:
+        with open(status_file, "r") as f:
+            return json.load(f)
+    except:
+        return {"status": "idle", "progress": 0, "message": "Ready to learn!"}
 
 
 @router.post("/submit-correction")

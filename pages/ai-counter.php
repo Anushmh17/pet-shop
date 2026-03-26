@@ -361,6 +361,14 @@ if (!isset($_SESSION['admin_auth'])) {
         <span id="trainStatusBadge" style="padding:4px 10px; border-radius:100px; font-size:.6rem; font-weight:800; background:#eee; color:#666;">IDLE</span>
       </div>
       
+      <!-- Progress Bar -->
+      <div id="progressContainer" style="display:none; margin-bottom:15px;">
+        <div style="background:var(--clr-border); height:8px; border-radius:10px; overflow:hidden;">
+          <div id="progressBar" style="width:0%; height:100%; background:#6c5ce7; transition:width 0.5s ease;"></div>
+        </div>
+        <div id="progressPercent" style="font-size:.6rem; font-weight:800; color:var(--clr-primary); text-align:right; margin-top:4px;">0%</div>
+      </div>
+
       <p id="trainMessage" style="font-size:.72rem; color:var(--clr-muted); margin-bottom:18px; line-height:1.4;">
         Ready to evolve? The AI will study all images in your <b>feedback/</b> folder to fix its mistakes.
       </p>
@@ -657,29 +665,59 @@ async function checkTrainingStatus() {
     const res = await fetch(`${AI_API_BASE}/train/status`);
     const data = await res.json();
     
-    const badge = document.getElementById('trainStatusBadge');
-    const btn   = document.getElementById('triggerTrainBtn');
-    const msg   = document.getElementById('trainMessage');
+    const badge     = document.getElementById('trainStatusBadge');
+    const btn       = document.getElementById('triggerTrainBtn');
+    const msg       = document.getElementById('trainMessage');
+    const progCont  = document.getElementById('progressContainer');
+    const progBar   = document.getElementById('progressBar');
+    const progTxt   = document.getElementById('progressPercent');
 
-    if (data.is_training) {
+    if (data.status === 'studying') {
       badge.textContent = 'STUDYING...';
       badge.style.background = 'rgba(108, 92, 231, 0.1)';
       badge.style.color      = '#6c5ce7';
+      
       btn.disabled      = true;
       btn.style.opacity = '0.5';
-      btn.textContent   = '🧠 AI IS LEARNING...';
-      msg.innerHTML     = 'The brain is currently processing your feedback images in the background. Do not close the AI Engine window!';
+      btn.textContent   = '🧠 ENGINE IS LEARNING...';
+      
+      progCont.style.display = 'block';
+      progBar.style.width    = `${data.progress}%`;
+      progTxt.textContent    = `${data.progress}%`;
+      msg.innerHTML          = data.message || 'The AI brain is evolving...';
+
+    } else if (data.status === 'success') {
+      badge.textContent = 'IDLE';
+      badge.style.background = '#e6f7f4';
+      badge.style.color      = '#00b894';
+      
+      btn.disabled      = false;
+      btn.style.opacity = '1';
+      btn.textContent   = '🚀 START NEW LEARNING SESSION';
+      
+      progCont.style.display = 'none';
+      msg.innerHTML          = `<span style="color:#00b894; font-weight:800;">${data.message}</span><br>The AI is now smarter! Try analyzing your pets again.`;
+
+    } else if (data.status === 'error') {
+      badge.textContent = 'ERROR';
+      badge.style.background = 'var(--clr-danger-lt)';
+      badge.style.color      = 'var(--clr-danger)';
+      
+      btn.disabled      = false;
+      btn.style.opacity = '1';
+      btn.textContent   = '🚀 RETRY SELF-LEARNING';
+      
+      progCont.style.display = 'none';
+      msg.innerHTML          = `<span style="color:var(--clr-danger);">Wait: ${data.message}</span>`;
+      
     } else {
+      // Idle
       badge.textContent = 'IDLE';
       badge.style.background = '#eee';
       badge.style.color      = '#666';
-      btn.disabled      = false;
-      btn.style.opacity = '1';
-      btn.textContent   = '🚀 START SELF-LEARNING';
-      
-      if (data.last_result && data.last_result !== "Never trained") {
-         msg.innerHTML = `<b>Last result:</b> ${data.last_result}. The AI has updated its brain based on your feedback.`;
-      }
+      btn.disabled           = false;
+      btn.textContent        = '🚀 START SELF-LEARNING';
+      progCont.style.display = 'none';
     }
   } catch(e) {}
 }

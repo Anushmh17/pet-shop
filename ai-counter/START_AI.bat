@@ -51,7 +51,7 @@ echo [STEP 3/3] Launching AI engine on port 8000...
 echo -----------------------------------
 echo SUCCESS! KEEP THIS WINDOW OPEN.
 echo -----------------------------------
-%PY_CMD% -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+%PY_CMD% -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-exclude "training_status.json"
 if %errorlevel% neq 0 (
     echo.
     echo [ERROR] Server crashed.

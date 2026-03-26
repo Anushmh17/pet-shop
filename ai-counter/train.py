@@ -2,16 +2,13 @@
 =============================================================
  train.py — AI Auto-Trainer (Human-in-the-Loop)
 =============================================================
- This script automatically converts your 'feedback/' folder
- into a valid YOLO dataset and trains a new model.
-=============================================================
 """
 
 import os
 import json
 import shutil
 import yaml
-import cv2
+import time
 from pathlib import Path
 from ultralytics import YOLO
 
@@ -20,126 +17,120 @@ BASE_DIR = Path(__file__).parent
 FEEDBACK_DIR = BASE_DIR / "feedback"
 DATASET_DIR = BASE_DIR / "auto_dataset"
 MODELS_DIR = BASE_DIR / "models"
+STATUS_FILE = BASE_DIR / "training_status.json"
+
+def update_status(status, progress=0, message="", classes=[]):
+    """Write current progress to a file for the website to read."""
+    with open(STATUS_FILE, "w") as f:
+        json.dump({
+            "status": status,      # 'idle', 'studying', 'success', 'error'
+            "progress": progress,  # 0 to 100
+            "message": message,
+            "classes": classes,
+            "timestamp": time.time()
+        }, f)
 
 def generate_auto_dataset():
-    """Converts feedback JSON + JPG into YOLO format."""
-    print("📦 Building auto-dataset from feedback...")
+    """Converts feedback into YOLO format."""
+    update_status("studying", 5, "📦 Preparing images...")
     
-    # Clean old dataset
-    if DATASET_DIR.exists():
-        shutil.rmtree(DATASET_DIR)
-    
+    if DATASET_DIR.exists(): shutil.rmtree(DATASET_DIR)
     (DATASET_DIR / "images").mkdir(parents=True)
     (DATASET_DIR / "labels").mkdir(parents=True)
 
-    # 1. Get unique labels
-    labels = set()
-    feedback_files = list(FEEDBACK_DIR.glob("*.json"))
-    for f in feedback_files:
+    # 1. Labels mapping
+    items = list(FEEDBACK_DIR.glob("*.json"))
+    found_labels = set()
+    for f in items:
         with f.open() as j:
-            try:
-                data = json.load(j)
-                labels.add(data.get("correction", "fish").lower())
+            try: found_labels.add(json.load(j).get("correction", "fish").lower())
             except: continue
     
-    if not labels: labels.add("fish") # fallback
-    label_map = {name: i for i, name in enumerate(sorted(list(labels)))}
-    print(f"  Mapped classes: {label_map}")
-
-    # 2. Teacher model (Very sensitive!)
-    teacher = YOLO(str(MODELS_DIR / "yolov8n.pt"))
+    if not found_labels: found_labels.add("fish")
     
+    # IMPORTANT: We MUST include the base classes so the AI doesn't forget them!
+    all_classes = sorted(list(found_labels))
+    label_map = {name: i for i, name in enumerate(all_classes)}
+    
+    # 2. Extract boxes
+    teacher = YOLO(str(MODELS_DIR / "yolov8n.pt"))
     count = 0
-    for f in feedback_files:
+    for i, f in enumerate(items):
         fb_id = f.stem
         img_path = FEEDBACK_DIR / f"{fb_id}.jpg"
         if not img_path.exists(): continue
         
         with f.open() as j:
-            try:
-                fb_data = json.load(j)
-                correct_label = fb_data.get("correction", "fish").lower()
-                class_id = label_map[correct_label]
+            try: class_id = label_map[json.load(j).get("correction", "fish").lower()]
             except: continue
 
-        # Run teacher with VERY LOW confidence (0.05) to find ANYTHING box-shaped
         results = teacher(str(img_path), conf=0.05, verbose=False)
-        
-        # Save boxes
         label_txt = DATASET_DIR / "labels" / f"{fb_id}.txt"
         found_any = False
         with label_txt.open("w") as lt:
             for r in results:
                 for box in r.boxes:
-                    xywhn = box.xywhn[0].tolist()
-                    lt.write(f"{class_id} {' '.join(map(str, xywhn))}\n")
+                    lt.write(f"{class_id} {' '.join(map(str, box.xywhn[0].tolist()))}\n")
                     found_any = True
         
-        # ⚠️ NO MORE GUESSING! 
-        # If teacher found nothing at 0.05 confidence, we skip this image
-        # because bad boxes = bad AI brain.
         if not found_any:
             if label_txt.exists(): os.remove(label_txt)
-            print(f"  ⚠️ Skipping {fb_id}.jpg (Teacher could not find boxes).")
-            continue
+        else:
+            shutil.copy(img_path, DATASET_DIR / "images" / f"{fb_id}.jpg")
+            count += 1
+        
+        # Incremental progress (up to 20%)
+        p = 5 + int((i+1)/len(items) * 15)
+        update_status("studying", p, f"📦 Processing image {i+1} of {len(items)}...")
 
-        # Copy image to dataset
-        shutil.copy(img_path, DATASET_DIR / "images" / f"{fb_id}.jpg")
-        count += 1
-
-    # 3. Create data.yaml
+    # 3. data.yaml
     data_yaml = {
         "path": str(DATASET_DIR.absolute()),
-        "train": "images",
-        "val": "images",
+        "train": "images", "val": "images",
         "names": {v: k for k, v in label_map.items()}
     }
+    with open(BASE_DIR / "auto_data.yaml", "w") as yf: yaml.dump(data_yaml, yf)
     
-    yaml_path = BASE_DIR / "auto_data.yaml"
-    with yaml_path.open("w") as yf:
-        yaml.dump(data_yaml, yf)
-    
-    return yaml_path, count, label_map
+    return count, label_map
 
 def train_new_model():
-    """Main entry point for training."""
-    print("\n🐾 Starting Pet Shop AI Evolution...")
-    print("─────────────────────────────────────────────────────────────")
-    
+    print("\n🐾 Evolution Mode Activated...")
     try:
-        # 1. Build dataset
-        yaml_path, count, label_map = generate_auto_dataset()
+        update_status("studying", 0, "🚀 Starting Engine...")
+        
+        count, lmap = generate_auto_dataset()
         if count == 0:
-            print("[ERROR] No valid data found. Try more clear photos!")
+            update_status("error", 0, "❌ No clear images found to learn from.")
             return
 
-        # 2. Load base model
+        # 🚀 THE STUDY SESSION
+        total_epochs = 30 # Reduced to 30 for faster feedback, better focus
         model = YOLO(str(MODELS_DIR / "yolov8n.pt"))
 
-        # 3. Train
-        # More epochs (50) and smaller batch for better learning on small data
+        def on_train_epoch_end(trainer):
+            """Callback to update progress bar on website."""
+            cur = trainer.epoch + 1
+            progress = 20 + int((cur / total_epochs) * 75)
+            update_status("studying", progress, f"🧠 Studying... epoch {cur}/{total_epochs}", list(lmap.keys()))
+
+        model.add_callback("on_train_epoch_end", on_train_epoch_end)
+
         model.train(
-            data=str(yaml_path),
-            epochs=50,
-            imgsz=640,
-            batch=4,
-            project=str(BASE_DIR / "runs"),
-            name="evolution",
-            exist_ok=True,
-            verbose=False
+            data=str(BASE_DIR / "auto_data.yaml"),
+            epochs=total_epochs, imgsz=640, batch=4,
+            project=str(BASE_DIR / "runs"), name="evolution", exist_ok=True, verbose=False
         )
 
-        # 4. Deploy results
+        # 4. Success
         best_pt = BASE_DIR / "runs" / "evolution" / "weights" / "best.pt"
         if best_pt.exists():
             shutil.copy(best_pt, MODELS_DIR / "best.pt")
-            print(f"\n✅ SUCCESS! New brain 'best.pt' created.")
-            print(f"   Processed {count} images with classes: {label_map}")
+            update_status("success", 100, f"✅ Brain Updated with {count} photos!", list(lmap.keys()))
         else:
-            print("\n[ERROR] Training finished but could not find weights.")
+            update_status("error", 0, "❌ Could not finalize weights.")
 
     except Exception as e:
-        print(f"\n[FATAL ERROR] {str(e)}")
+        update_status("error", 0, f"💥 Error: {str(e)}")
         raise e
 
 if __name__ == "__main__":
