@@ -15,10 +15,32 @@ import uuid
 import base64
 from pathlib import Path
 from pydantic import BaseModel
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 
 from core.detector import PetDetector
+
+# ─── Training Status State ──────────────────────────────────────────────────
+# Keep track of when the AI is 'studying' so we don't start twice.
+_is_training = False
+_last_training_result = "Never trained"
+
+def run_training_task():
+    """Background task to run the actual training logic."""
+    global _is_training, _last_training_result
+    try:
+        # Import train script logic here
+        from train import train_new_model
+        # NOTE: In a real production environment, you'd use a subprocess
+        # or a worker (Celery/RQ) so it doesn't slow down the main API.
+        # This is a 'simplified' implementation for the demo.
+        train_new_model()
+        _last_training_result = "Success (Updated!)"
+    except Exception as e:
+        _last_training_result = f"Failed: {str(e)}"
+    finally:
+        _is_training = False
+
 
 # ─── New: Feedback directory (for future training) ───────────────────────────
 FEEDBACK_DIR = Path(__file__).parent.parent / "feedback"
@@ -30,6 +52,37 @@ class FeedbackRequest(BaseModel):
 
 # ─── Router ───────────────────────────────────────────────────────────────────
 router = APIRouter()
+
+@router.post("/train/trigger")
+async def trigger_training(background_tasks: BackgroundTasks):
+    """Start the 'Self-Learning' process in the background."""
+    global _is_training, _last_training_result
+    
+    # 1. Check if we have enough data (at least 5 images recommended)
+    feedback_count = len(list(FEEDBACK_DIR.glob("*.jpg")))
+    if feedback_count < 1:
+        raise HTTPException(status_code=400, detail="Not enough feedback data! Try correcting an image first.")
+
+    # 2. Prevent concurrent training
+    if _is_training:
+        return {"status": "busy", "message": "The AI is already studying!"}
+
+    # 3. Queue the task
+    _is_training = True
+    _last_training_result = "Studying..."
+    background_tasks.add_task(run_training_task)
+    
+    return {"status": "started", "message": "AI Evolution started in the background!"}
+
+
+@router.get("/train/status")
+async def get_training_status():
+    """Get the current state of the 'Self-Learning' process."""
+    return {
+        "is_training": _is_training,
+        "last_result": _last_training_result
+    }
+
 
 @router.post("/submit-correction")
 async def submit_correction(req: FeedbackRequest):

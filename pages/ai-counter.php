@@ -345,6 +345,34 @@ if (!isset($_SESSION['admin_auth'])) {
     </div>
   </div>
 
+  <!-- AI Management (Engineer Mode) -->
+  <div class="card" style="margin-top:20px; border:2.5px dashed rgba(108, 92, 231, 0.2); background:var(--clr-surface); padding: 20px; border-radius: var(--r-xl);">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:15px;">
+      <div style="width:40px; height:40px; border-radius:10px; background:rgba(108, 92, 231, 0.1); display:flex; align-items:center; justify-content:center; font-size:1.2rem;">⚙️</div>
+      <div>
+        <h3 style="margin:0; font-size:1.1rem;">Engine Management</h3>
+        <p style="margin:0; font-size:.7rem; color:var(--clr-muted);">Keep the AI brain sharp by studying your feedback images.</p>
+      </div>
+    </div>
+
+    <div id="trainingCard" style="background:var(--clr-bg); border:1.5px solid var(--clr-border); border-radius:var(--r-lg); padding:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span style="font-size:.75rem; font-weight:800; color:var(--clr-text);">AUTO-LEARNING STATUS</span>
+        <span id="trainStatusBadge" style="padding:4px 10px; border-radius:100px; font-size:.6rem; font-weight:800; background:#eee; color:#666;">IDLE</span>
+      </div>
+      
+      <p id="trainMessage" style="font-size:.72rem; color:var(--clr-muted); margin-bottom:18px; line-height:1.4;">
+        Ready to evolve? The AI will study all images in your <b>feedback/</b> folder to fix its mistakes.
+      </p>
+
+      <button id="triggerTrainBtn" onclick="triggerTraining()" 
+              style="width:100%; padding:14px; background:#6c5ce7; color:#fff; border:none; border-radius:var(--r-md); font-weight:900; font-size:.85rem; cursor:pointer; transition:all 0.3s ease; box-shadow: 0 4px 12px rgba(108,92,231,.2);">
+        🚀 START SELF-LEARNING
+      </button>
+    </div>
+  </div>
+  <!-- End AI Management -->
+
   <!-- Info box -->
   <div class="info-box">
     <strong>📖 How it works</strong><br>
@@ -623,8 +651,64 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+// ─── AI Engine Management (Self-Learning) ───────────────────
+async function checkTrainingStatus() {
+  try {
+    const res = await fetch(`${AI_API_BASE}/train/status`);
+    const data = await res.json();
+    
+    const badge = document.getElementById('trainStatusBadge');
+    const btn   = document.getElementById('triggerTrainBtn');
+    const msg   = document.getElementById('trainMessage');
+
+    if (data.is_training) {
+      badge.textContent = 'STUDYING...';
+      badge.style.background = 'rgba(108, 92, 231, 0.1)';
+      badge.style.color      = '#6c5ce7';
+      btn.disabled      = true;
+      btn.style.opacity = '0.5';
+      btn.textContent   = '🧠 AI IS LEARNING...';
+      msg.innerHTML     = 'The brain is currently processing your feedback images in the background. Do not close the AI Engine window!';
+    } else {
+      badge.textContent = 'IDLE';
+      badge.style.background = '#eee';
+      badge.style.color      = '#666';
+      btn.disabled      = false;
+      btn.style.opacity = '1';
+      btn.textContent   = '🚀 START SELF-LEARNING';
+      
+      if (data.last_result && data.last_result !== "Never trained") {
+         msg.innerHTML = `<b>Last result:</b> ${data.last_result}. The AI has updated its brain based on your feedback.`;
+      }
+    }
+  } catch(e) {}
+}
+
+async function triggerTraining() {
+  if (!confirm("This will start a heavy AI training session in the background. Continue?")) return;
+  
+  try {
+    const res = await fetch(`${AI_API_BASE}/train/trigger`, { method: 'POST' });
+    const data = await res.json();
+    
+    if (res.ok) {
+      showToast("🚀 AI Evolution started!");
+      checkTrainingStatus();
+    } else {
+      showToast(data.detail || "Error starting training");
+    }
+  } catch(e) {
+    showToast("Could not contact AI Engine.");
+  }
+}
+
 // ─── Init ────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', checkApiStatus);
+document.addEventListener('DOMContentLoaded', () => {
+  checkApiStatus();
+  // Poll training status every 5 seconds
+  setInterval(checkTrainingStatus, 5000);
+  checkTrainingStatus();
+});
 </script>
 </body>
 </html>
