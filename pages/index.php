@@ -130,6 +130,10 @@ if (!isset($_SESSION['admin_auth'])) {
       <div class="card-icon">🐶</div>
       <span class="card-label">Add Pet</span>
     </a>
+    <a href="manage-pets.php" class="action-card card-inventory" id="btn-manage-pets" aria-label="Manage Inventory" style="border-top-color: #00b894;">
+      <div class="card-icon" style="background: #e6f7f4; color: #00b894;">📋</div>
+      <span class="card-label">Inventory</span>
+    </a>
     <a href="sales.php" class="action-card card-sales" id="btn-sales" aria-label="Sales">
       <div class="card-icon">📊</div>
       <span class="card-label">Sales</span>

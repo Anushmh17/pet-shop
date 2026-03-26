@@ -209,7 +209,7 @@
   <div class="flex-between" style="margin-bottom: 15px;">
     <h2 class="section-title" style="margin:0;">Current Stock</h2>
     <div style="display:flex; gap:10px;">
-      <span style="font-size:.65rem; font-weight:800; color:var(--clr-muted); border:1px solid var(--clr-border); padding:4px 8px; border-radius:6px; background:white;" id="alertStatusBadge">Checking...</span>
+      <span style="font-size:.65rem; font-weight:800; color:var(--clr-muted); border:1px solid var(--clr-border); padding:4px 8px; border-radius:6px; background:white; cursor:pointer; user-select:none;" id="alertStatusBadge" onclick="toggleStockSort()">Checking...</span>
     </div>
   </div>
 
@@ -290,6 +290,15 @@
         <div class="dc-label" style="margin-bottom:6px;">📝 Notes</div>
         <div class="notes-box" id="modalNotes"></div>
       </div>
+
+      <!-- Alert Toggle -->
+      <div class="detail-cell wide" style="background: var(--clr-primary-lt); border: 1px solid var(--clr-primary);">
+        <div class="dc-label">🔔 Stock Notifications</div>
+        <div class="flex-between" style="padding-top: 4px;">
+           <span style="font-size: .85rem; font-weight: 700; color: var(--clr-text);" id="modalAlertText">Alerts are active</span>
+           <button class="btn btn-sm" id="modalAlertBtn" onclick="handleToggleAlert()" style="padding: 6px 14px; border-radius: 12px; font-size: .7rem;"></button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -299,8 +308,15 @@
 <script>
 /* ================ STATE ================ */
 let allPets = [];
+let prioritySort = false;
 let startY = 0, distY = 0, pulling = false;
 const cnt = document.getElementById('content-wrapper');
+
+function toggleStockSort() {
+    prioritySort = !prioritySort;
+    renderPets();
+    showToast(prioritySort ? "Sorted by Low Stock" : "Default Sort");
+}
 
 /* ================ PTR ================ */
 window.addEventListener('touchstart', e => { if(window.scrollY === 0){ startY = e.touches[0].pageY; pulling = true; } }, {passive:true});
@@ -345,25 +361,31 @@ async function renderPets() {
 
     document.getElementById('emptyPets').style.display = 'none';
 
-    let lowStockCount = 0;
-    list.innerHTML = allPets.map((p, idx) => {
+    // Grouping Logic
+    const lowStockItems = [];
+    const regularItems  = [];
+    
+    allPets.forEach(p => {
         const isLow = parseInt(p.qty) <= parseInt(p.alert_level);
-        if(isLow && !p.stop_alert) lowStockCount++;
+        if (isLow && !p.stop_alert) lowStockItems.push(p);
+        else regularItems.push(p);
+    });
+
+    const renderCard = (p) => {
+        const isLow = parseInt(p.qty) <= parseInt(p.alert_level);
         const statusColor = isLow && !p.stop_alert ? 'var(--clr-danger)' : 'var(--clr-primary)';
         const statusBg    = isLow && !p.stop_alert ? 'var(--clr-danger-lt)' : 'var(--clr-primary-lt)';
-        // Distinguish between active low stock vs. silenced alerts vs. healthy
         const statusLabel = isLow && !p.stop_alert ? 'LOW STOCK' : (p.stop_alert && isLow ? 'ALERT OFF' : 'HEALTHY');
-
         const imgHtml = p.primaryImage 
             ? `<img src="${p.primaryImage}" onclick="event.stopPropagation(); maximizeImage(this.src)" style="width:100%; height:100%; object-fit:cover; cursor:zoom-in;" />`
             : `<span style="font-size:.9rem; color:var(--clr-muted); opacity:0.8;">📸</span>`;
+        const idx = allPets.findIndex(item => item.id == p.id);
 
         return `
           <div class="pet-stock-card" onclick="openModal(${idx})" id="pet-card-${p.id}" style="display:flex; align-items:center; gap:14px; padding:12px 14px;">
             <div style="width:48px; height:48px; border-radius:12px; background:var(--clr-bg); border:1.5px solid var(--clr-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
               ${imgHtml}
             </div>
-
             <div style="flex:1; min-width:0;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div style="font-weight:800; font-size:1rem; color:var(--clr-text); line-height:1.2;">${p.name}</div>
@@ -378,17 +400,36 @@ async function renderPets() {
             <div style="color:var(--clr-border); font-size:1.1rem; flex-shrink:0;">›</div>
           </div>
         `;
-    }).join('');
+    };
 
+    let finalHtml = '';
+    if (prioritySort && lowStockItems.length > 0) {
+        finalHtml += `<div style="font-size:.7rem; font-weight:800; color:var(--clr-danger); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; display:flex; align-items:center; gap:8px;">🚨 Critical Low Stock (${lowStockItems.length})</div>`;
+        finalHtml += lowStockItems.map(p => renderCard(p)).join('');
+        if (regularItems.length > 0) {
+            finalHtml += `<div style="font-size:.7rem; font-weight:800; color:var(--clr-muted); text-transform:uppercase; letter-spacing:1px; margin:20px 0 10px; display:flex; align-items:center; gap:8px;">📦 Other Inventory</div>`;
+            finalHtml += regularItems.map(p => renderCard(p)).join('');
+        }
+    } else {
+        finalHtml = allPets.map(p => renderCard(p)).join('');
+    }
+
+    list.innerHTML = finalHtml;
+
+    const lowStockCount = lowStockItems.length;
     const badge = document.getElementById('alertStatusBadge');
     if(lowStockCount > 0){
         badge.textContent = `🚨 ${lowStockCount} LOW STOCK`;
         badge.style.color = 'var(--clr-danger)';
         badge.style.borderColor = 'var(--clr-danger)';
+        if(prioritySort) badge.style.background = 'var(--clr-danger-lt)';
+        else badge.style.background = 'white';
     } else {
         badge.textContent = '✅ INVENTORY HEALTHY';
         badge.style.color = 'var(--clr-primary)';
         badge.style.borderColor = 'var(--clr-primary)';
+        badge.style.background = 'white';
+        prioritySort = false; // Reset if none
     }
 
     const now = new Date();
@@ -441,12 +482,44 @@ async function openModal(idx) {
     // Status badge
     const badge = document.getElementById('modalStatusBadge');
     if (isLow) {
-        badge.textContent = '⚠️ LOW STOCK';
-        badge.style.cssText = 'background:var(--clr-danger-lt); color:var(--clr-danger); font-size:.68rem; font-weight:800; padding:4px 12px; border-radius:50px;';
+        badge.textContent = p.stop_alert ? '⚪ ALERT OFF' : '⚠️ LOW STOCK';
+        badge.style.cssText = p.stop_alert 
+            ? 'background:var(--clr-border); color:var(--clr-muted); font-size:.68rem; font-weight:800; padding:4px 12px; border-radius:50px;'
+            : 'background:var(--clr-danger-lt); color:var(--clr-danger); font-size:.68rem; font-weight:800; padding:4px 12px; border-radius:50px;';
     } else {
         badge.textContent = '✅ Healthy Stock';
         badge.style.cssText = 'background:var(--clr-primary-lt); color:var(--clr-primary); font-size:.68rem; font-weight:800; padding:4px 12px; border-radius:50px;';
     }
+
+    // --- Alert Toggle Modal Logic ---
+    const alertText = document.getElementById('modalAlertText');
+    const alertBtn  = document.getElementById('modalAlertBtn');
+    
+    if (!isLow && !p.stop_alert) {
+        // Healthy stock: Just informative, no action needed unless it's already silenced
+        alertText.innerHTML = `Notifications will trigger at <span style="color:var(--clr-primary); opacity:0.8;">${p.alert_level} units</span>`;
+        alertText.style.color = "var(--clr-muted)";
+        alertBtn.style.display = "none"; 
+    } else {
+        // Low stock OR previously silenced: Show toggle
+        alertBtn.style.display = "block";
+        if (p.stop_alert) {
+            alertText.textContent = "Notifications Silenced";
+            alertText.style.color = "var(--clr-muted)";
+            alertBtn.textContent  = "RE-ENABLE";
+            alertBtn.className    = "btn btn-primary btn-sm";
+        } else {
+            alertText.textContent = "Low Stock Alert Active!";
+            alertText.style.color = "var(--clr-danger)";
+            alertBtn.textContent  = "SILENCE";
+            alertBtn.className    = "btn btn-outline btn-sm";
+            alertBtn.style.color  = "var(--clr-danger)";
+            alertBtn.style.borderColor = "var(--clr-danger)";
+        }
+    }
+    // Set trackers for the handler
+    alertBtn.dataset.petId = p.id;
+    alertBtn.dataset.currentStop = p.stop_alert ? "true" : "false";
 
     // Notes
     const notesCell = document.getElementById('modalNotesCell');
@@ -480,6 +553,31 @@ async function openModal(idx) {
 function closeModal() {
     document.getElementById('petModal').classList.remove('open');
     document.body.style.overflow = '';
+}
+
+async function handleToggleAlert() {
+    const btn = document.getElementById('modalAlertBtn');
+    const petId = btn.dataset.petId;
+    const isCurrentlyStopped = btn.dataset.currentStop === "true";
+    
+    // Flip it
+    const newStopValue = !isCurrentlyStopped;
+    
+    try {
+        const res = await DB.toggleAlert(petId, newStopValue);
+        if (res) {
+            showToast(newStopValue ? "Alert silenced" : "Alert re-enabled");
+            // Refresh local data and UI
+            await renderPets();
+            // find the updated pet in allPets to re-open modal or close
+            const pIdx = allPets.findIndex(p => p.id == petId);
+            if (pIdx !== -1) {
+                openModal(pIdx);
+            }
+        }
+    } catch(e) {
+        showToast("Error updating alert status");
+    }
 }
 
 function handleModalBgClick(e) {
