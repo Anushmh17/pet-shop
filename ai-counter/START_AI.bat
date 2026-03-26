@@ -36,10 +36,12 @@ if not exist "venv" (
 
 :: 4. Install requirements
 echo [STEP 2/3] Installing/Checking requirements (this can take 2-3 mins)...
+echo [NOTE] Using --no-cache-dir to fix the hash mismatch error.
 call venv\Scripts\activate
-pip install -r requirements.txt --quiet
+python -m pip install --upgrade pip
+pip install -r requirements.txt --no-cache-dir
 if %errorlevel% neq 0 (
-    echo [ERROR] Failed to install requirements!
+    echo [ERROR] Failed to install requirements! Still error? Check internet connection.
     pause
     exit /b
 )
