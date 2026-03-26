@@ -447,6 +447,17 @@ async function runAnalysis() {
     return;
   }
 
+  // Reset Correction Box State for the new analysis
+  const btn      = document.getElementById('submitCorrectionBtn');
+  const inputEl  = document.getElementById('correctionInput');
+  const statusEl = document.getElementById('correctionStatus');
+  
+  btn.disabled         = false;
+  btn.style.opacity    = '1';
+  btn.onclick          = submitCorrection;  // Re-attach the function
+  inputEl.value        = '';
+  statusEl.textContent = '';
+
   // Show loading state
   setLoading(true);
 
