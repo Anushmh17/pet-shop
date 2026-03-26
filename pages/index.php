@@ -155,6 +155,10 @@ if (!isset($_SESSION['admin_auth'])) {
       <span class="card-label">Payments</span>
       <span class="card-badge" id="payCount">0</span>
     </a>
+    <a href="ai-counter.php" class="action-card" id="btn-ai-counter" aria-label="AI Animal Counter" style="border-top-color: #6c5ce7;">
+      <div class="card-icon" style="background: #efecfd; color: #6c5ce7;">🤖</div>
+      <span class="card-label">AI Counter</span>
+    </a>
   </div>
 
   <!-- ===== CATEGORY BOX (full width) ===== -->

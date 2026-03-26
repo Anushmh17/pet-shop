@@ -1,0 +1,21 @@
+# General
+.vscode/
+.idea/
+*.log
+*.tmp
+.DS_Store
+
+# PHP
+vendor/
+composer.lock
+.env
+
+# Python (AI-Counter)
+ai-counter/venv/
+ai-counter/__pycache__/
+ai-counter/models/*.pt
+ai-counter/models/*.pt.cache
+*.pyc
+
+# Database
+database_backup.sql
