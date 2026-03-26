@@ -330,8 +330,8 @@ if (!isset($_SESSION['admin_auth'])) {
     <!-- Correction / Feedback Box -->
     <div id="correctionBox" style="padding:16px; border-top:1.5px solid var(--clr-border); background:var(--clr-bg);">
       <div class="det-list-title">✍️ Correction / Comment</div>
-      <div style="font-size:.72rem; color:var(--clr-muted); margin-bottom:10px; font-weight:600;">
-        Are these not birds? Type the correct name (e.g. Goldfish) to help the AI learn.
+      <div id="correctionText" style="font-size:.72rem; color:var(--clr-muted); margin-bottom:10px; font-weight:600;">
+        Are these not animals? Type the correct name to help the AI learn.
       </div>
       <div style="display:flex; gap:8px;">
         <input type="text" id="correctionInput" placeholder="Enter correct animal name..." 
@@ -531,6 +531,18 @@ function renderResults(data) {
   card.classList.add('visible');
   document.getElementById('correctionBox').style.display = 'block';
   document.getElementById('correctionStatus').textContent = '';
+
+  // Update correction text dynamically
+  const correctionText = document.getElementById('correctionText');
+  const labels = Object.keys(animals);
+
+  if (labels.length === 1) {
+    correctionText.textContent = `Is this not a ${labels[0]}? Type the correct name to help the AI learn.`;
+  } else if (labels.length > 1) {
+    correctionText.textContent = `Are these not ${labels.join(' and ')}? Type the correct name to help the AI learn.`;
+  } else {
+    correctionText.textContent = `Didn't see any animals? Snap a clearer photo or type the correct name here.`;
+  }
 
   // Scroll to results
   card.scrollIntoView({ behavior: 'smooth', block: 'start' });
