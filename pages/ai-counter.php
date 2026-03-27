@@ -274,17 +274,19 @@ if (!isset($_SESSION['admin_auth'])) {
       touch-action: none; /* prevent scrolling when drawing */
     }
     .btn-clear-box {
-      font-size: .65rem;
+      font-size: .72rem;
       font-weight: 800;
       color: var(--clr-danger);
-      background: var(--clr-danger-lt);
-      border: none;
-      padding: 4px 8px;
-      border-radius: 4px;
+      background: #fee;
+      border: 1.5px solid #fcc;
+      padding: 6px 12px;
+      border-radius: var(--r-md);
       margin-left: auto;
       cursor: pointer;
       display: none;
+      transition: all .2s;
     }
+    .btn-clear-box:hover { background: #fcc; color: #fff; }
   </style>
 </head>
 <body id="page-body">
@@ -365,9 +367,9 @@ if (!isset($_SESSION['admin_auth'])) {
 
     <!-- Correction / Feedback Box -->
     <div id="correctionBox" style="padding:16px; border-top:1.5px solid var(--clr-border); background:var(--clr-bg);">
-      <div class="det-list-title" style="display:flex; justify-content:space-between; width:100%;">
-        <span>✍️ Correction / Teach AI</span>
-        <button id="btnClearBox" class="btn-clear-box" onclick="clearDrawnBox()">Reset Box</button>
+      <div class="det-list-title" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+        <span>✍️ Multi-Box Teaching</span>
+        <button id="btnClearBox" class="btn-clear-box" onclick="clearDrawnBoxes()">🗑️ Reset All Boxes</button>
       </div>
       <div id="correctionText" style="font-size:.72rem; color:var(--clr-muted); margin-bottom:10px; font-weight:600;">
         Teach the AI by typing the name and (optional) drawing a box around the animal.
@@ -462,7 +464,7 @@ const ANIMAL_EMOJI = {
 
 // ─── State ───────────────────────────────────────────────────
 let selectedFile = null;
-let currentDrawnBox = null; // Stores normalized [cx, cy, w, h]
+let currentDrawnBoxes = []; // Array of normalized [cx, cy, w, h]
 let isDrawing = false;
 let startX, startY;
 
@@ -475,7 +477,7 @@ function resizeCanvas() {
   if (wrap.style.display !== 'none') {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
-    if (currentDrawnBox) redrawBox();
+    if (currentDrawnBoxes.length > 0) redrawBoxes();
   }
 }
 
@@ -483,8 +485,8 @@ window.addEventListener('resize', resizeCanvas);
 
 function getCoords(e) {
   const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX || e.touches[0].clientX) - rect.left;
-  const y = (e.clientY || e.touches[0].clientY) - rect.top;
+  const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+  const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
   return [x, y];
 }
 
@@ -499,8 +501,11 @@ function doDraw(e) {
   const [currX, currY] = getCoords(e);
   
   ctx.clearRect(0,0, canvas.width, canvas.height);
+  redrawBoxes(); // Draw existing
+  
+  // Draw new one preview
   ctx.strokeStyle = '#6c5ce7';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2;
   ctx.setLineDash([5, 5]);
   ctx.strokeRect(startX, startY, currX - startX, currY - startY);
 }
@@ -510,7 +515,6 @@ function endDraw(e) {
   isDrawing = false;
   const [endX, endY] = getCoords(e.changedTouches ? e.changedTouches[0] : e);
   
-  // Convert to YOLO format [cx, cy, w, h] normalized 0-1
   const x1 = Math.min(startX, endX);
   const x2 = Math.max(startX, endX);
   const y1 = Math.min(startY, endY);
@@ -520,7 +524,7 @@ function endDraw(e) {
   const h = y2 - y1;
   
   if (w < 10 || h < 10) {
-    ctx.clearRect(0,0, canvas.width, canvas.height);
+    redrawBoxes();
     return;
   }
 
@@ -529,33 +533,41 @@ function endDraw(e) {
   const nw = w / canvas.width;
   const nh = h / canvas.height;
   
-  currentDrawnBox = [cx, cy, nw, nh];
-  redrawBox();
+  currentDrawnBoxes.push([cx, cy, nw, nh]);
+  redrawBoxes();
   document.getElementById('btnClearBox').style.display = 'block';
-  showToast("📍 Box captured! This helps the AI point to the animal.");
+  showToast(`📍 Box #${currentDrawnBoxes.length} captured!`);
 }
 
-function redrawBox() {
-  if (!currentDrawnBox) return;
-  const [cx, cy, nw, nh] = currentDrawnBox;
-  const w = nw * canvas.width;
-  const h = nh * canvas.height;
-  const x = (cx * canvas.width) - w/2;
-  const y = (cy * canvas.height) - h/2;
-
+function redrawBoxes() {
   ctx.clearRect(0,0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#6c5ce7';
-  ctx.fillStyle = 'rgba(108,92,231, 0.15)';
-  ctx.lineWidth = 4;
-  ctx.setLineDash([]);
-  ctx.strokeRect(x, y, w, h);
-  ctx.fillRect(x, y, w, h);
+  
+  currentDrawnBoxes.forEach((box, i) => {
+    const [cx, cy, nw, nh] = box;
+    const w = nw * canvas.width;
+    const h = nh * canvas.height;
+    const x = (cx * canvas.width) - w/2;
+    const y = (cy * canvas.height) - h/2;
+
+    ctx.strokeStyle = '#6c5ce7';
+    ctx.fillStyle = 'rgba(108,92,231, 0.15)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([]);
+    ctx.strokeRect(x, y, w, h);
+    ctx.fillRect(x, y, w, h);
+    
+    // Number tag
+    ctx.fillStyle = '#6c5ce7';
+    ctx.font = 'bold 12px Inter, sans-serif';
+    ctx.fillText(`#${i+1}`, x + 5, y + 15);
+  });
 }
 
-function clearDrawnBox() {
-  currentDrawnBox = null;
+function clearDrawnBoxes() {
+  currentDrawnBoxes = [];
   ctx.clearRect(0,0, canvas.width, canvas.height);
   document.getElementById('btnClearBox').style.display = 'none';
+  showToast("🗑️ All manual boxes cleared.");
 }
 
 canvas.addEventListener('mousedown', startDraw);
@@ -605,7 +617,7 @@ function handleFileSelect(file) {
     wrap.style.display = 'flex';
     zone.classList.add('has-image');
 
-    clearDrawnBox();
+    clearDrawnBoxes();
     setTimeout(resizeCanvas, 100);
   };
   reader.readAsDataURL(file);
@@ -642,7 +654,7 @@ async function runAnalysis() {
   btn.onclick          = submitCorrection;  // Re-attach the function
   inputEl.value        = '';
   statusEl.textContent = '';
-  clearDrawnBox(); // Don't carry over boxes from preview analysis
+  clearDrawnBoxes(); // Don't carry over boxes from preview analysis
 
   // Show loading state
   setLoading(true);
@@ -734,11 +746,11 @@ function renderResults(data) {
   const labels = Object.keys(animals);
 
   if (labels.length === 1) {
-    correctionText.textContent = `Is this not a ${labels[0]}? Type the correct name and draw a box to help the AI.`;
+    correctionText.textContent = `Is this not a ${labels[0]}? Draw all missing animals to teach the AI.`;
   } else if (labels.length > 1) {
-    correctionText.textContent = `Are these not ${labels.join(' and ')}? Type the correct name and draw a box to help the AI.`;
+    correctionText.textContent = `Are these not ${labels.join(' and ')}? Draw all missing ones here.`;
   } else {
-    correctionText.textContent = `Didn't see any animals? Snap a clearer photo, then type the name and draw a box here.`;
+    correctionText.textContent = `Didn't see any animals? Draw boxes around each one to point them out.`;
   }
 
   // Scroll to results
@@ -770,16 +782,16 @@ async function submitCorrection() {
       body: JSON.stringify({
         image_data: img.src,
         label: label,
-        box: currentDrawnBox // [cx, cy, w, h] or null
+        boxes: currentDrawnBoxes // Array [[cx, cy, w, h], ...]
       })
     });
 
     if (!res.ok) throw new Error('Failed to save correction');
 
-    statusEl.textContent = '✅ Success! Your manual box and label will help the AI learn faster.';
+    statusEl.textContent = `✅ Success! Your ${currentDrawnBoxes.length} manual boxes will teach the AI.`;
     statusEl.style.color = '#00b894';
     inputEl.value        = '';
-    clearDrawnBox();
+    clearDrawnBoxes();
     
     // Disable after success
     btn.style.opacity = '0.5';

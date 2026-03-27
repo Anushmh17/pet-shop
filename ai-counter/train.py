@@ -64,17 +64,19 @@ def generate_auto_dataset():
             try: 
                 fb_data = json.load(j)
                 class_id = label_map[fb_data.get("correction", "fish").lower()]
-                user_box = fb_data.get("box")
+                user_boxes = fb_data.get("boxes") # list of [x,y,w,h]
             except: continue
 
         label_txt = DATASET_DIR / "labels" / f"{fb_id}.txt"
         found_any = False
         
-        if user_box and len(user_box) == 4:
-            # 🚀 USER DRAWN BOX (Priorty)
+        if user_boxes and len(user_boxes) > 0:
+            # 🚀 USER DRAWN BOXES (Priority)
             with label_txt.open("w") as lt:
-                lt.write(f"{class_id} {' '.join(map(str, user_box))}\n")
-            found_any = True
+                for b in user_boxes:
+                    if len(b) == 4:
+                        lt.write(f"{class_id} {' '.join(map(str, b))}\n")
+                found_any = True
         else:
             # 🤖 TEACHER ASSISTED (Fallback)
             results = teacher(str(img_path), conf=0.05, verbose=False)
