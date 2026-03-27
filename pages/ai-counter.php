@@ -287,6 +287,101 @@ if (!isset($_SESSION['admin_auth'])) {
       transition: all .2s;
     }
     .btn-clear-box:hover { background: #fcc; color: #fff; }
+
+    .zoom-hint {
+      position: absolute;
+      bottom: 12px; right: 12px;
+      padding: 6px 12px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      font-size: .65rem;
+      font-weight: 800;
+      border-radius: 50px;
+      pointer-events: none;
+      z-index: 10;
+      display: none;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* ─── Zoom Modal ─── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 2000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .modal-overlay.visible { display: flex; }
+    
+    .modal-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      color: #fff;
+    }
+    .modal-title { font-size:.85rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; }
+    .btn-close {
+      background: rgba(255,255,255,.1);
+      border: 1.5px solid rgba(255,255,255,.2);
+      color: #fff;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .btn-close:hover { background: #6c5ce7; border-color: #6c5ce7; }
+    
+    .zoom-container {
+      position: relative;
+      width: 100%;
+      height: 75vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #zoomImg {
+      max-width: 95%;
+      max-height: 100%;
+      object-fit: contain;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: var(--r-md);
+    }
+    #zoomCanvas {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 95%; height: 100%; /* Will be strictly matched to img via JS */
+      z-index: 2005;
+      cursor: crosshair;
+    }
+    .zoom-footer {
+      width: 100%;
+      padding: 10px 20px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .btn-done {
+      background: #6c5ce7;
+      color: #fff;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 50px;
+      font-weight: 800;
+      font-size: .9rem;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(108,92,231,0.4);
+    }
   </style>
 </head>
 <body id="page-body">
@@ -319,7 +414,8 @@ if (!isset($_SESSION['admin_auth'])) {
   </div>
 
   <!-- ─── Capture Zone ─── -->
-  <div class="capture-zone" id="captureZone">
+  <div class="capture-zone" id="captureZone" style="cursor:pointer;" title="Click to zoom / draw">
+    <div id="zoomHint" class="zoom-hint">🔍 Tap to Zoom & Draw</div>
     <div class="capture-placeholder" id="placeholderView" onclick="document.getElementById('galleryInput').click()">
       <div class="capture-icon">📷</div>
       <div class="capture-title">Tap to select a photo</div>
@@ -470,22 +566,38 @@ let canDraw = false; // Locked until analysis
 let startX, startY;
 
 // ─── Canvas Interaction ──────────────────────────────────────
-const canvas = document.getElementById('drawCanvas');
-const ctx = canvas.getContext('2d');
+// ─── Multi-Canvas State ──────────────────────────────────────
+const canvasMain = document.getElementById('drawCanvas');
+const canvasZoom = document.getElementById('zoomCanvas');
+let activeCanvas = canvasMain;
+let activeCtx = canvasMain.getContext('2d');
+
+function syncDrawingTargets(isZoom) {
+  activeCanvas = isZoom ? canvasZoom : canvasMain;
+  activeCtx = activeCanvas.getContext('2d');
+}
 
 function resizeCanvas() {
   const wrap = document.getElementById('canvasWrapper');
-  if (wrap.style.display !== 'none') {
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-    if (currentDrawnBoxes.length > 0) redrawBoxes();
+  if (wrap && wrap.style.display !== 'none') {
+    canvasMain.width = canvasMain.clientWidth;
+    canvasMain.height = canvasMain.clientHeight;
   }
+  
+  const zModal = document.getElementById('zoomModal');
+  if (zModal && zModal.classList.contains('visible')) {
+     const zImg = document.getElementById('zoomImg');
+     canvasZoom.width = zImg.clientWidth;
+     canvasZoom.height = zImg.clientHeight;
+  }
+  
+  if (currentDrawnBoxes.length > 0) redrawBoxes();
 }
 
 window.addEventListener('resize', resizeCanvas);
 
 function getCoords(e) {
-  const rect = canvas.getBoundingClientRect();
+  const rect = activeCanvas.getBoundingClientRect();
   const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
   const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
   return [x, y];
@@ -505,14 +617,14 @@ function doDraw(e) {
   if (!isDrawing) return;
   const [currX, currY] = getCoords(e);
   
-  ctx.clearRect(0,0, canvas.width, canvas.height);
+  activeCtx.clearRect(0,0, activeCanvas.width, activeCanvas.height);
   redrawBoxes(); // Draw existing
   
   // Draw new one preview
-  ctx.strokeStyle = '#6c5ce7';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([5, 5]);
-  ctx.strokeRect(startX, startY, currX - startX, currY - startY);
+  activeCtx.strokeStyle = '#6c5ce7';
+  activeCtx.lineWidth = 2;
+  activeCtx.setLineDash([5, 5]);
+  activeCtx.strokeRect(startX, startY, currX - startX, currY - startY);
 }
 
 function endDraw(e) {
@@ -533,10 +645,10 @@ function endDraw(e) {
     return;
   }
 
-  const cx = (x1 + w/2) / canvas.width;
-  const cy = (y1 + h/2) / canvas.height;
-  const nw = w / canvas.width;
-  const nh = h / canvas.height;
+  const cx = (x1 + w/2) / activeCanvas.width;
+  const cy = (y1 + h/2) / activeCanvas.height;
+  const nw = w / activeCanvas.width;
+  const nh = h / activeCanvas.height;
   
   currentDrawnBoxes.push([cx, cy, nw, nh]);
   redrawBoxes();
@@ -545,45 +657,91 @@ function endDraw(e) {
 }
 
 function redrawBoxes() {
-  ctx.clearRect(0,0, canvas.width, canvas.height);
+  activeCtx.clearRect(0,0, activeCanvas.width, activeCanvas.height);
   
   currentDrawnBoxes.forEach((box, i) => {
     const [cx, cy, nw, nh] = box;
-    const w = nw * canvas.width;
-    const h = nh * canvas.height;
-    const x = (cx * canvas.width) - w/2;
-    const y = (cy * canvas.height) - h/2;
+    const w = nw * activeCanvas.width;
+    const h = nh * activeCanvas.height;
+    const x = (cx * activeCanvas.width) - w/2;
+    const y = (cy * activeCanvas.height) - h/2;
 
-    ctx.strokeStyle = '#6c5ce7';
-    ctx.fillStyle = 'rgba(108,92,231, 0.15)';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([]);
-    ctx.strokeRect(x, y, w, h);
-    ctx.fillRect(x, y, w, h);
+    activeCtx.strokeStyle = '#6c5ce7';
+    activeCtx.fillStyle = 'rgba(108,92,231, 0.15)';
+    activeCtx.lineWidth = 3;
+    activeCtx.setLineDash([]);
+    activeCtx.strokeRect(x, y, w, h);
+    activeCtx.fillRect(x, y, w, h);
     
     // Number tag
-    ctx.fillStyle = '#6c5ce7';
-    ctx.font = 'bold 12px Inter, sans-serif';
-    ctx.fillText(`#${i+1}`, x + 5, y + 15);
+    activeCtx.fillStyle = '#6c5ce7';
+    activeCtx.font = 'bold 12px Inter, sans-serif';
+    activeCtx.fillText(`#${i+1}`, x + 5, y + 15);
   });
 }
 
 function clearDrawnBoxes(silent = false) {
   const hadBoxes = currentDrawnBoxes.length > 0;
   currentDrawnBoxes = [];
-  ctx.clearRect(0,0, canvas.width, canvas.height);
+  
+  // Clear both
+  [canvasMain, canvasZoom].forEach(can => {
+    can.getContext('2d').clearRect(0,0, can.width, can.height);
+  });
+
   document.getElementById('btnClearBox').style.display = 'none';
   if (hadBoxes && !silent) {
     showToast("🗑️ All manual boxes cleared.");
   }
 }
 
-canvas.addEventListener('mousedown', startDraw);
-canvas.addEventListener('mousemove', doDraw);
-canvas.addEventListener('mouseup', endDraw);
-canvas.addEventListener('touchstart', startDraw);
-canvas.addEventListener('touchmove', doDraw);
-canvas.addEventListener('touchend', endDraw);
+// ─── Zoom Modal Controls ─────────────────────────────────────
+function openZoomModal() {
+  if (!selectedFile) return;
+  const modal = document.getElementById('zoomModal');
+  const zImg  = document.getElementById('zoomImg');
+  const pImg  = document.getElementById('previewImg');
+  const title = document.querySelector('.modal-title');
+  const btnD  = document.querySelector('.btn-done');
+  
+  title.textContent = canDraw ? "📍 Zoom & Draw Mode" : "🔍 Full Size Preview";
+  btnD.textContent  = canDraw ? "Finish & Save Boxes" : "Close Preview";
+
+  zImg.src = pImg.src;
+  modal.classList.add('visible');
+  
+  syncDrawingTargets(true);
+  
+  zImg.onload = () => {
+    resizeCanvas();
+  };
+}
+
+function closeZoomModal() {
+  const modal = document.getElementById('zoomModal');
+  modal.classList.remove('visible');
+  syncDrawingTargets(false);
+  resizeCanvas(); // Refresh main
+}
+
+// Attach Listeners
+[canvasMain, canvasZoom].forEach(can => {
+  can.addEventListener('mousedown', startDraw);
+  can.addEventListener('mousemove', doDraw);
+  can.addEventListener('mouseup', endDraw);
+  can.addEventListener('touchstart', startDraw);
+  can.addEventListener('touchmove', doDraw);
+  can.addEventListener('touchend', endDraw);
+});
+
+// Capture Zone click logic
+document.getElementById('captureZone').onclick = (e) => {
+  if (selectedFile) {
+     openZoomModal();
+  } else {
+     document.getElementById('galleryInput').click();
+  }
+};
 
 // ─── Check AI backend status on load ─────────────────────────
 async function checkApiStatus() {
@@ -626,8 +784,9 @@ function handleFileSelect(file) {
     zone.classList.add('has-image');
     
     canDraw = false;
-    canvas.style.cursor = 'not-allowed';
+    canvasMain.style.cursor = 'not-allowed';
 
+    document.getElementById('zoomHint').style.display = 'block';
     clearDrawnBoxes(true); // Silent for image select
     setTimeout(resizeCanvas, 100);
   };
@@ -687,7 +846,7 @@ async function runAnalysis() {
 
     const data = await res.json();
     canDraw = true;
-    canvas.style.cursor = 'crosshair';
+    canvasMain.style.cursor = 'crosshair';
     renderResults(data);
 
   } catch (err) {
@@ -925,5 +1084,23 @@ document.addEventListener('DOMContentLoaded', () => {
   checkTrainingStatus();
 });
 </script>
+
+<!-- 🔍 ZOOM MODAL (Full Screen Drawing) -->
+<div id="zoomModal" class="modal-overlay">
+  <div class="modal-header">
+    <div class="modal-title">🔍 Zoom & Draw</div>
+    <button class="btn-close" onclick="closeZoomModal()">&times;</button>
+  </div>
+  
+  <div class="zoom-container">
+    <img id="zoomImg" src="" alt="Zoomed view" />
+    <canvas id="zoomCanvas"></canvas>
+  </div>
+
+  <div class="zoom-footer">
+    <button class="btn-done" onclick="closeZoomModal()">Done Drawing</button>
+  </div>
+</div>
+
 </body>
 </html>
