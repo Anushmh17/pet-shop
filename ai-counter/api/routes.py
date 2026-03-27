@@ -98,12 +98,11 @@ async def submit_correction(req: FeedbackRequest):
     into the 'feedback/' folder for human-in-the-loop learning.
     """
     try:
-        # Generate unique ID (first part of UUID)
-        fb_id = str(uuid.uuid4()).split('-')[0]
-        
-        # Decode image (format: "data:image/jpeg;base64,xxxx")
+        # Generate ID based on image content (prevents duplication)
+        import hashlib
         header, encoded = req.image_data.split(",", 1)
         image_bytes = base64.b64decode(encoded)
+        fb_id = hashlib.md5(image_bytes).hexdigest()[:8]
         
         # Save image
         img_path = FEEDBACK_DIR / f"{fb_id}.jpg"
