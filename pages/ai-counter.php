@@ -466,6 +466,7 @@ const ANIMAL_EMOJI = {
 let selectedFile = null;
 let currentDrawnBoxes = []; // Array of normalized [cx, cy, w, h]
 let isDrawing = false;
+let canDraw = false; // Locked until analysis
 let startX, startY;
 
 // ─── Canvas Interaction ──────────────────────────────────────
@@ -491,6 +492,10 @@ function getCoords(e) {
 }
 
 function startDraw(e) {
+  if (!canDraw) {
+    showToast("🔍 Click 'Analyse Animals' first!");
+    return;
+  }
   if (e.type.startsWith('touch')) e.preventDefault();
   isDrawing = true;
   [startX, startY] = getCoords(e);
@@ -616,6 +621,9 @@ function handleFileSelect(file) {
     ph.style.display   = 'none';
     wrap.style.display = 'flex';
     zone.classList.add('has-image');
+    
+    canDraw = false;
+    canvas.style.cursor = 'not-allowed';
 
     clearDrawnBoxes();
     setTimeout(resizeCanvas, 100);
@@ -675,6 +683,8 @@ async function runAnalysis() {
     }
 
     const data = await res.json();
+    canDraw = true;
+    canvas.style.cursor = 'crosshair';
     renderResults(data);
 
   } catch (err) {
