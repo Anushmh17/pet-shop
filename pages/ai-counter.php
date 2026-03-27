@@ -568,11 +568,14 @@ function redrawBoxes() {
   });
 }
 
-function clearDrawnBoxes() {
+function clearDrawnBoxes(silent = false) {
+  const hadBoxes = currentDrawnBoxes.length > 0;
   currentDrawnBoxes = [];
   ctx.clearRect(0,0, canvas.width, canvas.height);
   document.getElementById('btnClearBox').style.display = 'none';
-  showToast("🗑️ All manual boxes cleared.");
+  if (hadBoxes && !silent) {
+    showToast("🗑️ All manual boxes cleared.");
+  }
 }
 
 canvas.addEventListener('mousedown', startDraw);
@@ -625,7 +628,7 @@ function handleFileSelect(file) {
     canDraw = false;
     canvas.style.cursor = 'not-allowed';
 
-    clearDrawnBoxes();
+    clearDrawnBoxes(true); // Silent for image select
     setTimeout(resizeCanvas, 100);
   };
   reader.readAsDataURL(file);
@@ -662,7 +665,7 @@ async function runAnalysis() {
   btn.onclick          = submitCorrection;  // Re-attach the function
   inputEl.value        = '';
   statusEl.textContent = '';
-  clearDrawnBoxes(); // Don't carry over boxes from preview analysis
+  clearDrawnBoxes(true); // Silent for re-analysis
 
   // Show loading state
   setLoading(true);
