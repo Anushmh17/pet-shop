@@ -49,6 +49,7 @@ FEEDBACK_DIR.mkdir(exist_ok=True)
 class FeedbackRequest(BaseModel):
     image_data: str   # base64 encoded image
     label: str        # user correction (e.g. "Goldfish")
+    box: list[float] | None = None  # optional [x, y, w, h] normalized 0-1
 
 # ─── Router ───────────────────────────────────────────────────────────────────
 router = APIRouter()
@@ -111,7 +112,11 @@ async def submit_correction(req: FeedbackRequest):
         # Save label metadata
         meta_path = FEEDBACK_DIR / f"{fb_id}.json"
         with meta_path.open("w") as f:
-            json.dump({"id": fb_id, "correction": req.label}, f)
+            json.dump({
+                "id": fb_id,
+                "correction": req.label,
+                "box": req.box  # list [x,y,w,h] if provided
+            }, f)
             
         return {"status": "success", "message": "Feedback saved! We'll use this to teach the AI."}
     

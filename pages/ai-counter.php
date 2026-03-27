@@ -253,6 +253,38 @@ if (!isset($_SESSION['admin_auth'])) {
       color: var(--clr-text);
       border: 1.5px solid var(--clr-border);
     }
+
+    /* ─── Drawing Canvas ─── */
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: inherit;
+    }
+    #drawCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      cursor: crosshair;
+      z-index: 5;
+      touch-action: none; /* prevent scrolling when drawing */
+    }
+    .btn-clear-box {
+      font-size: .65rem;
+      font-weight: 800;
+      color: var(--clr-danger);
+      background: var(--clr-danger-lt);
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-left: auto;
+      cursor: pointer;
+      display: none;
+    }
   </style>
 </head>
 <body id="page-body">
@@ -285,13 +317,17 @@ if (!isset($_SESSION['admin_auth'])) {
   </div>
 
   <!-- ─── Capture Zone ─── -->
-  <div class="capture-zone" id="captureZone" onclick="document.getElementById('galleryInput').click()">
-    <div class="capture-placeholder">
+  <div class="capture-zone" id="captureZone">
+    <div class="capture-placeholder" id="placeholderView" onclick="document.getElementById('galleryInput').click()">
       <div class="capture-icon">📷</div>
       <div class="capture-title">Tap to select a photo</div>
       <div class="capture-sub">Or use the camera button below</div>
     </div>
-    <img id="previewImg" alt="Preview" />
+    
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <img id="previewImg" alt="Preview" />
+      <canvas id="drawCanvas"></canvas>
+    </div>
   </div>
 
   <!-- Action Buttons -->
@@ -329,9 +365,12 @@ if (!isset($_SESSION['admin_auth'])) {
 
     <!-- Correction / Feedback Box -->
     <div id="correctionBox" style="padding:16px; border-top:1.5px solid var(--clr-border); background:var(--clr-bg);">
-      <div class="det-list-title">✍️ Correction / Comment</div>
+      <div class="det-list-title" style="display:flex; justify-content:space-between; width:100%;">
+        <span>✍️ Correction / Teach AI</span>
+        <button id="btnClearBox" class="btn-clear-box" onclick="clearDrawnBox()">Reset Box</button>
+      </div>
       <div id="correctionText" style="font-size:.72rem; color:var(--clr-muted); margin-bottom:10px; font-weight:600;">
-        Are these not animals? Type the correct name to help the AI learn.
+        Teach the AI by typing the name and (optional) drawing a box around the animal.
       </div>
       <div style="display:flex; gap:8px;">
         <input type="text" id="correctionInput" placeholder="Enter correct animal name..." 
@@ -423,6 +462,108 @@ const ANIMAL_EMOJI = {
 
 // ─── State ───────────────────────────────────────────────────
 let selectedFile = null;
+let currentDrawnBox = null; // Stores normalized [cx, cy, w, h]
+let isDrawing = false;
+let startX, startY;
+
+// ─── Canvas Interaction ──────────────────────────────────────
+const canvas = document.getElementById('drawCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const wrap = document.getElementById('canvasWrapper');
+  if (wrap.style.display !== 'none') {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    if (currentDrawnBox) redrawBox();
+  }
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+function getCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX || e.touches[0].clientX) - rect.left;
+  const y = (e.clientY || e.touches[0].clientY) - rect.top;
+  return [x, y];
+}
+
+function startDraw(e) {
+  if (e.type.startsWith('touch')) e.preventDefault();
+  isDrawing = true;
+  [startX, startY] = getCoords(e);
+}
+
+function doDraw(e) {
+  if (!isDrawing) return;
+  const [currX, currY] = getCoords(e);
+  
+  ctx.clearRect(0,0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#6c5ce7';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([5, 5]);
+  ctx.strokeRect(startX, startY, currX - startX, currY - startY);
+}
+
+function endDraw(e) {
+  if (!isDrawing) return;
+  isDrawing = false;
+  const [endX, endY] = getCoords(e.changedTouches ? e.changedTouches[0] : e);
+  
+  // Convert to YOLO format [cx, cy, w, h] normalized 0-1
+  const x1 = Math.min(startX, endX);
+  const x2 = Math.max(startX, endX);
+  const y1 = Math.min(startY, endY);
+  const y2 = Math.max(startY, endY);
+  
+  const w = x2 - x1;
+  const h = y2 - y1;
+  
+  if (w < 10 || h < 10) {
+    ctx.clearRect(0,0, canvas.width, canvas.height);
+    return;
+  }
+
+  const cx = (x1 + w/2) / canvas.width;
+  const cy = (y1 + h/2) / canvas.height;
+  const nw = w / canvas.width;
+  const nh = h / canvas.height;
+  
+  currentDrawnBox = [cx, cy, nw, nh];
+  redrawBox();
+  document.getElementById('btnClearBox').style.display = 'block';
+  showToast("📍 Box captured! This helps the AI point to the animal.");
+}
+
+function redrawBox() {
+  if (!currentDrawnBox) return;
+  const [cx, cy, nw, nh] = currentDrawnBox;
+  const w = nw * canvas.width;
+  const h = nh * canvas.height;
+  const x = (cx * canvas.width) - w/2;
+  const y = (cy * canvas.height) - h/2;
+
+  ctx.clearRect(0,0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#6c5ce7';
+  ctx.fillStyle = 'rgba(108,92,231, 0.15)';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([]);
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillRect(x, y, w, h);
+}
+
+function clearDrawnBox() {
+  currentDrawnBox = null;
+  ctx.clearRect(0,0, canvas.width, canvas.height);
+  document.getElementById('btnClearBox').style.display = 'none';
+}
+
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', doDraw);
+canvas.addEventListener('mouseup', endDraw);
+canvas.addEventListener('touchstart', startDraw);
+canvas.addEventListener('touchmove', doDraw);
+canvas.addEventListener('touchend', endDraw);
 
 // ─── Check AI backend status on load ─────────────────────────
 async function checkApiStatus() {
@@ -456,8 +597,16 @@ function handleFileSelect(file) {
   reader.onload = (e) => {
     const img  = document.getElementById('previewImg');
     const zone = document.getElementById('captureZone');
-    img.src    = e.target.result;
+    const wrap = document.getElementById('canvasWrapper');
+    const ph   = document.getElementById('placeholderView');
+
+    img.src = e.target.result;
+    ph.style.display   = 'none';
+    wrap.style.display = 'flex';
     zone.classList.add('has-image');
+
+    clearDrawnBox();
+    setTimeout(resizeCanvas, 100);
   };
   reader.readAsDataURL(file);
 
@@ -493,6 +642,7 @@ async function runAnalysis() {
   btn.onclick          = submitCorrection;  // Re-attach the function
   inputEl.value        = '';
   statusEl.textContent = '';
+  clearDrawnBox(); // Don't carry over boxes from preview analysis
 
   // Show loading state
   setLoading(true);
@@ -584,11 +734,11 @@ function renderResults(data) {
   const labels = Object.keys(animals);
 
   if (labels.length === 1) {
-    correctionText.textContent = `Is this not a ${labels[0]}? Type the correct name to help the AI learn.`;
+    correctionText.textContent = `Is this not a ${labels[0]}? Type the correct name and draw a box to help the AI.`;
   } else if (labels.length > 1) {
-    correctionText.textContent = `Are these not ${labels.join(' and ')}? Type the correct name to help the AI learn.`;
+    correctionText.textContent = `Are these not ${labels.join(' and ')}? Type the correct name and draw a box to help the AI.`;
   } else {
-    correctionText.textContent = `Didn't see any animals? Snap a clearer photo or type the correct name here.`;
+    correctionText.textContent = `Didn't see any animals? Snap a clearer photo, then type the name and draw a box here.`;
   }
 
   // Scroll to results
@@ -618,16 +768,18 @@ async function submitCorrection() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        image_data: img.src,   // uses the base64 from the preview
-        label: label
+        image_data: img.src,
+        label: label,
+        box: currentDrawnBox // [cx, cy, w, h] or null
       })
     });
 
     if (!res.ok) throw new Error('Failed to save correction');
 
-    statusEl.textContent = '✅ Thank you! Feedback saved for the next AI update.';
+    statusEl.textContent = '✅ Success! Your manual box and label will help the AI learn faster.';
     statusEl.style.color = '#00b894';
     inputEl.value        = '';
+    clearDrawnBox();
     
     // Disable after success
     btn.style.opacity = '0.5';

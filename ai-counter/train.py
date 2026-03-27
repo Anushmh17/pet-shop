@@ -61,17 +61,28 @@ def generate_auto_dataset():
         if not img_path.exists(): continue
         
         with f.open() as j:
-            try: class_id = label_map[json.load(j).get("correction", "fish").lower()]
+            try: 
+                fb_data = json.load(j)
+                class_id = label_map[fb_data.get("correction", "fish").lower()]
+                user_box = fb_data.get("box")
             except: continue
 
-        results = teacher(str(img_path), conf=0.05, verbose=False)
         label_txt = DATASET_DIR / "labels" / f"{fb_id}.txt"
         found_any = False
-        with label_txt.open("w") as lt:
-            for r in results:
-                for box in r.boxes:
-                    lt.write(f"{class_id} {' '.join(map(str, box.xywhn[0].tolist()))}\n")
-                    found_any = True
+        
+        if user_box and len(user_box) == 4:
+            # 🚀 USER DRAWN BOX (Priorty)
+            with label_txt.open("w") as lt:
+                lt.write(f"{class_id} {' '.join(map(str, user_box))}\n")
+            found_any = True
+        else:
+            # 🤖 TEACHER ASSISTED (Fallback)
+            results = teacher(str(img_path), conf=0.05, verbose=False)
+            with label_txt.open("w") as lt:
+                for r in results:
+                    for box in r.boxes:
+                        lt.write(f"{class_id} {' '.join(map(str, box.xywhn[0].tolist()))}\n")
+                        found_any = True
         
         if not found_any:
             if label_txt.exists(): os.remove(label_txt)
@@ -105,7 +116,15 @@ def train_new_model():
 
         # 🚀 THE STUDY SESSION
         total_epochs = 30 # Reduced to 30 for faster feedback, better focus
-        model = YOLO(str(MODELS_DIR / "yolov8n.pt"))
+        
+        last_ckpt = BASE_DIR / "runs" / "evolution" / "weights" / "last.pt"
+        if last_ckpt.exists():
+            print("📦 Resuming from last checkpoint...")
+            model = YOLO(str(last_ckpt))
+            resume = True
+        else:
+            model = YOLO(str(MODELS_DIR / "yolov8n.pt"))
+            resume = False
 
         def on_train_epoch_end(trainer):
             """Callback to update progress bar on website."""
@@ -118,7 +137,8 @@ def train_new_model():
         model.train(
             data=str(BASE_DIR / "auto_data.yaml"),
             epochs=total_epochs, imgsz=640, batch=4,
-            project=str(BASE_DIR / "runs"), name="evolution", exist_ok=True, verbose=False
+            project=str(BASE_DIR / "runs"), name="evolution", exist_ok=True, verbose=False,
+            resume=resume
         )
 
         # 4. Success
