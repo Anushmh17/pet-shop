@@ -36,4 +36,5 @@ app.include_router(router)
 @app.get("/")
 async def root():
     """Health-check endpoint."""
+    print(">>> REQUEST HIT ROOT <<<", flush=True)
     return {"status": "ok", "service": "Pet Shop AI Counter v1.0"}

@@ -1,8 +1,6 @@
 names:
   0: dog
   1: fish
-  2: these are gold fish. there are 4 goldfishes. the count is correct. only the name
-    is  wrong
 path: C:\xampp\htdocs\Webbuilders Projects\petshop\ai-counter\auto_dataset
 train: images
 val: images

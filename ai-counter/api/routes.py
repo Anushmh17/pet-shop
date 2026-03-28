@@ -98,13 +98,28 @@ async def submit_correction(req: FeedbackRequest):
     into the 'feedback/' folder for human-in-the-loop learning.
     """
     try:
-        # Generate ID based on image content (prevents duplication)
-        import hashlib
-        header, encoded = req.image_data.split(",", 1)
+        # 1. Extract image bytes correctly
+        if "," in req.image_data:
+            _, encoded = req.image_data.split(",", 1)
+        else:
+            encoded = req.image_data
         image_bytes = base64.b64decode(encoded)
-        fb_id = hashlib.md5(image_bytes).hexdigest()[:8]
         
-        # Save image
+        # 2. Content-Aware Hashing (Prevents duplicates even if metadata varies)
+        import hashlib
+        from PIL import Image
+        import io
+        
+        # We hash the raw RGB pixels to ensure only the image content matters
+        try:
+            with Image.open(io.BytesIO(image_bytes)) as img:
+                pixels = img.convert("RGB").tobytes()
+                fb_id = hashlib.md5(pixels).hexdigest()[:8]
+        except:
+            # Fallback to byte hash if image can't be decoded
+            fb_id = hashlib.md5(image_bytes).hexdigest()[:8]
+        
+        # 3. Save Image (Overwrite allowed)
         img_path = FEEDBACK_DIR / f"{fb_id}.jpg"
         img_path.write_bytes(image_bytes)
         

@@ -344,24 +344,26 @@ if (!isset($_SESSION['admin_auth'])) {
       position: relative;
       width: 100%;
       height: 75vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      touch-action: none;
+      overflow: auto;
+      touch-action: auto; /* Allow native pan scrolling */
+    }
+    #zoomTransformWrapper {
+      position: relative;
+      width: 100%;
+      margin: auto;
+      transition: width 0.15s ease-out;
     }
     #zoomImg {
-      max-width: 95%;
-      max-height: 100%;
-      object-fit: contain;
-      border: 1px solid rgba(255,255,255,.1);
+      width: 100%;
+      height: auto;
+      display: block;
       border-radius: var(--r-md);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
     #zoomCanvas {
       position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 95%; height: 100%; /* Will be strictly matched to img via JS */
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       z-index: 2005;
       cursor: crosshair;
     }
@@ -381,6 +383,17 @@ if (!isset($_SESSION['admin_auth'])) {
       font-size: .9rem;
       cursor: pointer;
       box-shadow: 0 4px 15px rgba(108,92,231,0.4);
+    }
+    .btn-mode {
+      background: var(--clr-surface);
+      color: var(--clr-text);
+      border: 1.5px solid var(--clr-border);
+      padding: 12px 20px;
+      border-radius: 50px;
+      font-weight: 800;
+      font-size: .8rem;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
     }
   </style>
 </head>
@@ -415,7 +428,7 @@ if (!isset($_SESSION['admin_auth'])) {
 
   <!-- ─── Capture Zone ─── -->
   <div class="capture-zone" id="captureZone" style="cursor:pointer;" title="Click to zoom / draw">
-    <div id="zoomHint" class="zoom-hint">🔍 Tap to Zoom & Draw</div>
+    <div id="zoomHint" class="zoom-hint">🔍 Tap to View Image</div>
     <div class="capture-placeholder" id="placeholderView" onclick="document.getElementById('galleryInput').click()">
       <div class="capture-icon">📷</div>
       <div class="capture-title">Tap to select a photo</div>
@@ -538,6 +551,32 @@ if (!isset($_SESSION['admin_auth'])) {
 
 <div class="toast" id="toast"></div>
 
+<!-- 🔍 ZOOM MODAL (Full Screen Drawing) -->
+<div id="zoomModal" class="modal-overlay">
+  <div class="modal-header" style="flex-wrap: wrap; gap:10px;">
+    <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+      <div class="modal-title">🔍 Zoom & Draw</div>
+      <button class="btn-close" onclick="closeZoomModal()">&times;</button>
+    </div>
+    <div style="display:flex; width: 100%; align-items:center; color:#fff; gap:8px;">
+      <span style="font-size:0.75rem; font-weight:800;">ZOOM:</span>
+      <input type="range" id="zoomSlider" min="1" max="4" step="0.1" value="1" style="flex:1;" oninput="updateZoomLevel(this.value)" />
+      <span id="zoomValTxt" style="font-size:0.8rem; font-weight:800; min-width:30px; text-align:right;">1.0x</span>
+    </div>
+  </div>
+  
+  <div class="zoom-container">
+    <div id="zoomTransformWrapper">
+      <img id="zoomImg" src="" alt="Zoomed view" />
+      <canvas id="zoomCanvas"></canvas>
+    </div>
+  </div>
+
+  <div class="zoom-footer" style="gap:12px;">
+    <button id="modeToggleBtn" onclick="toggleZoomMode()" class="btn-mode">👐 Pan / Zoom</button>
+    <button class="btn-done" style="flex:1;" onclick="closeZoomModal()">Done Drawing</button>
+  </div>
+</div>
 <script>
 /* =============================================================
    AI Counter — Frontend Logic
@@ -546,7 +585,10 @@ if (!isset($_SESSION['admin_auth'])) {
 // ─── Configuration ────────────────────────────────────────────
 // The Python AI backend runs on the same machine on port 8000.
 // Using window.location.hostname allows mobile phones on the same Wi-Fi to connect.
-const AI_API_BASE = `${window.location.protocol}//${window.location.hostname}:8000`;
+// Force local IP if on the same machine (fixes some browser/hostname issues)
+const localHosts = ['localhost', '127.0.0.1', '::1'];
+const host = localHosts.includes(window.location.hostname) ? '127.0.0.1' : window.location.hostname;
+const AI_API_BASE = `http://${host}:8000`;
 const DETECT_ENDPOINT = `${AI_API_BASE}/detect-and-count`;
 
 // ─── Animal emoji map ────────────────────────────────────────
@@ -587,8 +629,13 @@ function resizeCanvas() {
   const zModal = document.getElementById('zoomModal');
   if (zModal && zModal.classList.contains('visible')) {
      const zImg = document.getElementById('zoomImg');
-     canvasZoom.width = zImg.clientWidth;
-     canvasZoom.height = zImg.clientHeight;
+     if (zImg.naturalWidth) {
+       canvasZoom.width = zImg.naturalWidth;
+       canvasZoom.height = zImg.naturalHeight;
+     } else {
+       canvasZoom.width = zImg.clientWidth;
+       canvasZoom.height = zImg.clientHeight;
+     }
   }
   
   if (currentDrawnBoxes.length > 0) redrawBoxes();
@@ -598,9 +645,14 @@ window.addEventListener('resize', resizeCanvas);
 
 function getCoords(e) {
   const rect = activeCanvas.getBoundingClientRect();
-  const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-  const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-  return [x, y];
+  const rawX = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+  const rawY = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+  
+  // Account for any native pinch-zoom scaling that alters the layout size vs actual pixel size
+  const scaleX = activeCanvas.width / rect.width;
+  const scaleY = activeCanvas.height / rect.height;
+  
+  return [rawX * scaleX, rawY * scaleY];
 }
 
 function startDraw(e) {
@@ -696,6 +748,36 @@ function clearDrawnBoxes(silent = false) {
 }
 
 // ─── Zoom Modal Controls ─────────────────────────────────────
+let isPanMode = false;
+
+function updateZoomLevel(val) {
+  document.getElementById('zoomValTxt').textContent = Number(val).toFixed(1) + 'x';
+  const wrap = document.getElementById('zoomTransformWrapper');
+  wrap.style.width = (val * 100) + '%';
+  // Removed resizeCanvas() to prevent massive canvas reallocation during slider drag which crushes performance and blocks zooming.
+}
+
+function toggleZoomMode() {
+  isPanMode = !isPanMode;
+  const btn = document.getElementById('modeToggleBtn');
+  const zCan = document.getElementById('zoomCanvas');
+  const zCont = document.querySelector('.zoom-container');
+
+  if (isPanMode) {
+    btn.innerHTML = '✍️ Switch to Draw Mode';
+    btn.style.borderColor = '#00b894';
+    btn.style.color = '#00b894';
+    zCan.style.pointerEvents = 'none';
+    zCont.style.touchAction = 'auto';
+  } else {
+    btn.innerHTML = '👐 Switch to Pan/Zoom';
+    btn.style.borderColor = 'var(--clr-border)';
+    btn.style.color = 'var(--clr-text)';
+    zCan.style.pointerEvents = 'auto';
+    zCont.style.touchAction = 'none';
+  }
+}
+
 function openZoomModal() {
   if (!selectedFile) return;
   const modal = document.getElementById('zoomModal');
@@ -703,9 +785,19 @@ function openZoomModal() {
   const pImg  = document.getElementById('previewImg');
   const title = document.querySelector('.modal-title');
   const btnD  = document.querySelector('.btn-done');
+  const btnM  = document.getElementById('modeToggleBtn');
   
+  // Reset Zoom
+  document.getElementById('zoomSlider').value = 1;
+  updateZoomLevel(1);
+
   title.textContent = canDraw ? "📍 Zoom & Draw Mode" : "🔍 Full Size Preview";
   btnD.textContent  = canDraw ? "Finish & Save Boxes" : "Close Preview";
+  btnM.style.display = canDraw ? "flex" : "none"; // Only show mode switch if they can draw
+  
+  // Always reset to Pan / Zoom mode by default so viewport is maneuverable easily
+  isPanMode = false; // setting to false because toggleZoomMode will immediately flip it to true
+  toggleZoomMode(); 
 
   zImg.src = pImg.src;
   modal.classList.add('visible');
@@ -720,12 +812,13 @@ function openZoomModal() {
 function closeZoomModal() {
   const modal = document.getElementById('zoomModal');
   modal.classList.remove('visible');
+
   syncDrawingTargets(false);
   resizeCanvas(); // Refresh main
 }
 
-// Attach Listeners
-[canvasMain, canvasZoom].forEach(can => {
+// Attach Listeners ONLY to the Zoom Canvas (The main canvas is strictly a static preview)
+[canvasZoom].forEach(can => {
   can.addEventListener('mousedown', startDraw);
   can.addEventListener('mousemove', doDraw);
   can.addEventListener('mouseup', endDraw);
@@ -749,8 +842,12 @@ async function checkApiStatus() {
   const dotEl     = document.getElementById('apiDot');
   const textEl    = document.getElementById('apiStatusText');
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
+
   try {
-    const res = await fetch(AI_API_BASE + '/', { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(AI_API_BASE + '/', { signal: controller.signal });
+    clearTimeout(timeoutId);
     if (res.ok) {
       statusEl.className = 'ok';
       dotEl.textContent  = '✅';
@@ -758,7 +855,7 @@ async function checkApiStatus() {
     } else {
       throw new Error('bad status');
     }
-  } catch {
+  } catch (e) {
     statusEl.className = 'err';
     dotEl.textContent  = '❌';
     textEl.textContent = 'AI engine offline — start the Python server';
@@ -786,6 +883,7 @@ function handleFileSelect(file) {
     canDraw = false;
     canvasMain.style.cursor = 'not-allowed';
 
+    document.getElementById('zoomHint').textContent = '🔍 Tap to View Image';
     document.getElementById('zoomHint').style.display = 'block';
     clearDrawnBoxes(true); // Silent for image select
     setTimeout(resizeCanvas, 100);
@@ -847,6 +945,7 @@ async function runAnalysis() {
     const data = await res.json();
     canDraw = true;
     canvasMain.style.cursor = 'crosshair';
+    document.getElementById('zoomHint').textContent = '📍 Tap to Zoom & Draw';
     renderResults(data);
 
   } catch (err) {
@@ -1078,6 +1177,8 @@ async function triggerTraining() {
 
 // ─── Init ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Poll API status every 5 seconds
+  setInterval(checkApiStatus, 5000);
   checkApiStatus();
   // Poll training status every 5 seconds
   setInterval(checkTrainingStatus, 5000);
@@ -1085,22 +1186,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<!-- 🔍 ZOOM MODAL (Full Screen Drawing) -->
-<div id="zoomModal" class="modal-overlay">
-  <div class="modal-header">
-    <div class="modal-title">🔍 Zoom & Draw</div>
-    <button class="btn-close" onclick="closeZoomModal()">&times;</button>
-  </div>
-  
-  <div class="zoom-container">
-    <img id="zoomImg" src="" alt="Zoomed view" />
-    <canvas id="zoomCanvas"></canvas>
-  </div>
-
-  <div class="zoom-footer">
-    <button class="btn-done" onclick="closeZoomModal()">Done Drawing</button>
-  </div>
-</div>
 
 </body>
 </html>

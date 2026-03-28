@@ -119,14 +119,14 @@ def train_new_model():
         # 🚀 THE STUDY SESSION
         total_epochs = 30 # Reduced to 30 for faster feedback, better focus
         
-        last_ckpt = BASE_DIR / "runs" / "evolution" / "weights" / "last.pt"
-        if last_ckpt.exists():
-            print("📦 Resuming from last checkpoint...")
-            model = YOLO(str(last_ckpt))
-            resume = True
+        # We start from the latest best weights if available, otherwise base YOLO
+        best_ckpt = MODELS_DIR / "best.pt"
+        if best_ckpt.exists():
+            print(f"📦 Fine-tuning from existing best model: {best_ckpt}")
+            model = YOLO(str(best_ckpt))
         else:
+            print(f"📦 Starting fresh from base model: {MODELS_DIR / 'yolov8n.pt'}")
             model = YOLO(str(MODELS_DIR / "yolov8n.pt"))
-            resume = False
 
         def on_train_epoch_end(trainer):
             """Callback to update progress bar on website."""
@@ -140,7 +140,7 @@ def train_new_model():
             data=str(BASE_DIR / "auto_data.yaml"),
             epochs=total_epochs, imgsz=640, batch=4,
             project=str(BASE_DIR / "runs"), name="evolution", exist_ok=True, verbose=False,
-            resume=resume
+            resume=False # Never resume; always start fresh fine-tuning on new data
         )
 
         # 4. Success
