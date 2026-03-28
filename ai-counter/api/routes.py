@@ -27,7 +27,7 @@ _last_training_result = "Never trained"
 
 def run_training_task():
     """Background task to run the actual training logic."""
-    global _is_training, _last_training_result
+    global _is_training, _last_training_result, _detector
     try:
         # Import train script logic here
         from train import train_new_model
@@ -36,6 +36,11 @@ def run_training_task():
         # This is a 'simplified' implementation for the demo.
         train_new_model()
         _last_training_result = "Success (Updated!)"
+        
+        # 🔥 CORE FIX: Hot-reload the brain!
+        # If we don't clear this, the server keeps using the old model in memory
+        _detector = None
+        
     except Exception as e:
         _last_training_result = f"Failed: {str(e)}"
     finally:

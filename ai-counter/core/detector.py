@@ -80,12 +80,20 @@ class PetDetector:
         animals:    dict[str, int] = {}
         detections: list[dict]     = []
 
+        is_custom = "best.pt" in str(self.model.ckpt_path if hasattr(self.model, 'ckpt_path') else self.model.pt_path)
+        
         for box in raw_results[0].boxes:
             class_id   = int(box.cls[0])
-            label      = PET_CLASS_MAP.get(class_id)
-            if label is None:
-                continue        # skip non-pet objects
-
+            
+            # Use the model's internal names dictionary directly!
+            # If it's a base model, we filter for dog/cat/bird.
+            # If it's the custom model, all its internal names are valid user-defined animals.
+            label = self.model.names.get(class_id, "unknown")
+            
+            # Filter if base model
+            if not is_custom and label not in ["dog", "cat", "bird", "rabbit"]:
+                continue
+                
             confidence = float(box.conf[0])
             x1, y1, x2, y2 = [round(v) for v in box.xyxy[0].tolist()]
 

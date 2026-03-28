@@ -117,8 +117,8 @@ def train_new_model():
             return
 
         # 🚀 THE STUDY SESSION
-        total_epochs = 30 # Reduced to 30 for faster feedback, better focus
-        
+        total_epochs = 30 # Restored to 30 for maximum learning accuracy
+
         # We start from the latest best weights if available, otherwise base YOLO
         best_ckpt = MODELS_DIR / "best.pt"
         if best_ckpt.exists():
@@ -138,7 +138,7 @@ def train_new_model():
 
         model.train(
             data=str(BASE_DIR / "auto_data.yaml"),
-            epochs=total_epochs, imgsz=640, batch=4,
+            epochs=total_epochs, imgsz=640, batch=4, device="cpu",
             project=str(BASE_DIR / "runs"), name="evolution", exist_ok=True, verbose=False,
             resume=False # Never resume; always start fresh fine-tuning on new data
         )
