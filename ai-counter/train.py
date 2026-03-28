@@ -19,6 +19,9 @@ DATASET_DIR = BASE_DIR / "auto_dataset"
 MODELS_DIR = BASE_DIR / "models"
 STATUS_FILE = BASE_DIR / "training_status.json"
 
+# ─── MASTER CATEGORY LIST (Order must never change!) ──────────
+MASTER_CLASSES = ["bird", "cat", "dog", "fish", "rabbit"]
+
 def update_status(status, progress=0, message="", classes=[]):
     """Write current progress to a file for the website to read."""
     with open(STATUS_FILE, "w") as f:
@@ -41,9 +44,8 @@ def generate_auto_dataset():
     # 1. Fixed Class Vocabulary
     # We use a STABLE list so the AI doesn't mix up Birds and Fish!
     items = list(FEEDBACK_DIR.glob("*.json"))
-    MASTER_CLASSES = ["bird", "cat", "dog", "fish", "rabbit"]
     label_map = {name: i for i, name in enumerate(MASTER_CLASSES)}
-    all_classes = MASTER_CLASSES
+    all_classes = list(MASTER_CLASSES) # Create a copy
     
     # Check if user has any new custom labels beyond the master list
     for f in items:
@@ -136,14 +138,30 @@ def train_new_model():
         # 🚀 THE STUDY SESSION
         total_epochs = 30 # Restored to 30 for maximum learning accuracy
 
-        # We start from the latest best weights if available, otherwise base YOLO
+        # Determine starting checkpoint (Latest Brain or Fresh Start from Standard)
         best_ckpt = MODELS_DIR / "best.pt"
+        start_from_fresh = True
+        
         if best_ckpt.exists():
+            # 🔥 SAFETY CHECK: Verify that the current brain uses the correct slot mapping
+            # (e.g. if an old model thinks 'Fish' is slot 0, but the new code thinks 'Bird' is slot 0, then we MUST reset)
+            try:
+                temp_model = YOLO(str(best_ckpt))
+                # Check if the labels match our MASTER_CLASSES exactly
+                if getattr(temp_model, 'names') and list(temp_model.names.values())[:5] == MASTER_CLASSES:
+                    print(f"📦 Slot-Mapping Verified. Continuing study for: {list(temp_model.names.values())}")
+                    start_from_fresh = False
+                else:
+                    print(f"⚠️ Brain Conflict! Mapping changed. Wiping old memory and starting fresh to fix confusion.")
+            except:
+                print(f"⚠️ Could not verify brain. Starting fresh.")
+
+        if not start_from_fresh:
             print(f"📦 Fine-tuning from existing best model: {best_ckpt}")
             model = YOLO(str(best_ckpt))
         else:
             print(f"📦 Starting fresh from base model: {MODELS_DIR / 'yolov8n.pt'}")
-            model = YOLO(str(MODELS_DIR / "yolov8n.pt"))
+            model = YOLO(str(MODELS_DIR / 'yolov8n.pt'))
 
         def on_train_epoch_end(trainer):
             """Callback to update progress bar on website."""
