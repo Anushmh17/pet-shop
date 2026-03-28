@@ -38,19 +38,23 @@ def generate_auto_dataset():
     (DATASET_DIR / "images").mkdir(parents=True)
     (DATASET_DIR / "labels").mkdir(parents=True)
 
-    # 1. Labels mapping
+    # 1. Fixed Class Vocabulary
+    # We use a STABLE list so the AI doesn't mix up Birds and Fish!
     items = list(FEEDBACK_DIR.glob("*.json"))
-    found_labels = set()
+    MASTER_CLASSES = ["bird", "cat", "dog", "fish", "rabbit"]
+    label_map = {name: i for i, name in enumerate(MASTER_CLASSES)}
+    all_classes = MASTER_CLASSES
+    
+    # Check if user has any new custom labels beyond the master list
     for f in items:
         with f.open() as j:
-            try: found_labels.add(json.load(j).get("correction", "fish").lower())
+            try: 
+                lbl = json.load(j).get("correction", "fish").lower()
+                if lbl not in label_map:
+                    # Append new unknown animal to the master list
+                    label_map[lbl] = len(all_classes)
+                    all_classes.append(lbl)
             except: continue
-    
-    if not found_labels: found_labels.add("fish")
-    
-    # IMPORTANT: We MUST include the base classes so the AI doesn't forget them!
-    all_classes = sorted(list(found_labels))
-    label_map = {name: i for i, name in enumerate(all_classes)}
     
     # 2. Extract boxes
     teacher = YOLO(str(MODELS_DIR / "yolov8n.pt"))
@@ -70,19 +74,32 @@ def generate_auto_dataset():
         label_txt = DATASET_DIR / "labels" / f"{fb_id}.txt"
         found_any = False
         
-        if user_boxes and len(user_boxes) > 0:
-            # 🚀 USER DRAWN BOXES (Priority)
-            with label_txt.open("w") as lt:
+        # 🤖 TEACHER HELPER (To see if other animals are in plain sight)
+        results = teacher(str(img_path), conf=0.15, verbose=False)
+        
+        with label_txt.open("w") as lt:
+            if user_boxes and len(user_boxes) > 0:
+                # 🚀 USER DRAWN BOXES (Priority for the corrected animal)
                 for b in user_boxes:
                     if len(b) == 4:
                         lt.write(f"{class_id} {' '.join(map(str, b))}\n")
-                found_any = True
-        else:
-            # 🤖 TEACHER ASSISTED (Fallback)
-            results = teacher(str(img_path), conf=0.05, verbose=False)
-            with label_txt.open("w") as lt:
-                for r in results:
-                    for box in r.boxes:
+                        found_any = True
+            
+            # 🧠 SMART TEACHER: Look for other pets we know about to prevent confusion
+            # (e.g. if there's a bird in the background of a fish photo, label it as a bird)
+            for r in results:
+                for box in r.boxes:
+                    t_cid = int(box.cls[0])
+                    # COCO Map: 14:bird, 15:cat, 16:dog
+                    t_name = {14:"bird", 15:"cat", 16:"dog"}.get(t_cid)
+                    
+                    if t_name and t_name in label_map:
+                        t_target_cid = label_map[t_name]
+                        # Don't overlap with user's specific correction if they are the same area
+                        lt.write(f"{t_target_cid} {' '.join(map(str, box.xywhn[0].tolist()))}\n")
+                        found_any = True
+                    elif not user_boxes:
+                        # If user didn't draw, and it's not a COCO pet, use the correction for the FIRST found object
                         lt.write(f"{class_id} {' '.join(map(str, box.xywhn[0].tolist()))}\n")
                         found_any = True
         
