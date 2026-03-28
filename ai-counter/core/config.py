@@ -17,8 +17,8 @@ STATUS_FILE = BASE_DIR / "training_status.json"
 MODEL_PATH = MODELS_DIR / "best.pt" if (MODELS_DIR / "best.pt").exists() else MODELS_DIR / "yolov8n.pt"
 
 # ─── Inference thresholds ─────────────────────────────────────
-CONFIDENCE_THRESHOLD = 0.20   # Balanced for both base and custom models
-IOU_THRESHOLD        = 0.45   # NMS threshold
+CONFIDENCE_THRESHOLD = 0.40   # Raised to 40% to ignore random background noise
+IOU_THRESHOLD        = 0.25   # Lowered to 25% to aggressively merge double-boxes
 
 # ─── Image size cap ───────────────────────────────────────────
 MAX_IMAGE_SIZE = 1280         # pixels (longest edge)
