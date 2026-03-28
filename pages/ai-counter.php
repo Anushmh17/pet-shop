@@ -662,8 +662,17 @@ function startDraw(e) {
     return;
   }
   if (e.type.startsWith('touch')) e.preventDefault();
+  
+  const [ex, ey] = getCoords(e);
+  
+  // ─── HIT DETECTION: Try to delete existing box first ───
+  if (deleteBoxAt(ex, ey)) {
+      isDrawing = false;
+      return; // Stop here, we just deleted something
+  }
+
   isDrawing = true;
-  [startX, startY] = getCoords(e);
+  [startX, startY] = [ex, ey];
 }
 
 function doDraw(e) {
@@ -729,12 +738,12 @@ function redrawBoxes() {
     
     // Tag background
     activeCtx.fillStyle = '#00b894';
-    activeCtx.fillRect(x - 1.5, Math.max(0, y - 22), 40, 22);
+    activeCtx.fillRect(x - 1.5, Math.max(0, y - 22), 52, 22);
 
-    // Number tag
+    // Number tag + Delete hint
     activeCtx.fillStyle = '#ffffff';
     activeCtx.font = 'bold 12px Inter, sans-serif';
-    activeCtx.fillText(`#${box.num}`, x + 5, Math.max(16, y - 6));
+    activeCtx.fillText(`#${box.num}  [x]`, x + 5, Math.max(16, y - 6));
   });
 
   // ─── Draw User Manual Boxes ───
@@ -752,11 +761,55 @@ function redrawBoxes() {
     activeCtx.strokeRect(x, y, w, h);
     activeCtx.fillRect(x, y, w, h);
     
-    // Number tag
+    // Tag background
     activeCtx.fillStyle = '#6c5ce7';
+    activeCtx.fillRect(x - 1.5, Math.max(0, y - 22), 52, 22);
+
+    // Number tag + Delete hint
+    activeCtx.fillStyle = '#ffffff';
     activeCtx.font = 'bold 12px Inter, sans-serif';
-    activeCtx.fillText(`[${i+1}]`, x + 5, y + 15);
+    activeCtx.fillText(`[${i+1}]  [x]`, x + 5, Math.max(16, y - 6));
   });
+}
+
+function deleteBoxAt(ex, ey) {
+  // Check user boxes first (reverse order for top-most)
+  for (let i = currentDrawnBoxes.length - 1; i >= 0; i--) {
+    const [cx, cy, nw, nh] = currentDrawnBoxes[i];
+    const w = nw * activeCanvas.width;
+    const h = nh * activeCanvas.height;
+    const x = (cx * activeCanvas.width) - w/2;
+    const y = (cy * activeCanvas.height) - h/2;
+    
+    if (ex >= x && ex <= x + w && ey >= y - 22 && ey <= y + h) {
+      currentDrawnBoxes.splice(i, 1);
+      redrawBoxes();
+      showToast("🗑️ User box removed.");
+      return true;
+    }
+  }
+
+  // Check AI boxes
+  for (let i = aiDrawnBoxes.length - 1; i >= 0; i--) {
+    const box = aiDrawnBoxes[i];
+    const x = box.nx * activeCanvas.width;
+    const y = box.ny * activeCanvas.height;
+    const w = box.nw * activeCanvas.width;
+    const h = box.nh * activeCanvas.height;
+
+    if (ex >= x && ex <= x + w && ey >= y - 22 && ey <= y + h) {
+      aiDrawnBoxes.splice(i, 1);
+      
+      // Update the total count in the UI too
+      const currentTotal = parseInt(document.getElementById('rTotal').textContent);
+      document.getElementById('rTotal').textContent = Math.max(0, currentTotal - 1);
+      
+      redrawBoxes();
+      showToast("🗑️ AI box removed.");
+      return true;
+    }
+  }
+  return false;
 }
 
 function clearDrawnBoxes(silent = false) {
@@ -971,7 +1024,7 @@ async function runAnalysis() {
     const data = await res.json();
     canDraw = true;
     canvasMain.style.cursor = 'crosshair';
-    document.getElementById('zoomHint').textContent = '📍 Tap to Zoom & Draw';
+    document.getElementById('zoomHint').textContent = '📍 Tap a box to Remove | Drag to Draw';
     renderResults(data);
 
   } catch (err) {
