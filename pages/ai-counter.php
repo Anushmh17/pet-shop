@@ -603,6 +603,7 @@ const ANIMAL_EMOJI = {
 // ─── State ───────────────────────────────────────────────────
 let selectedFile = null;
 let currentDrawnBoxes = []; // Array of normalized [cx, cy, w, h]
+let aiDrawnBoxes = [];      // Array of AI predictions
 let isDrawing = false;
 let canDraw = false; // Locked until analysis
 let startX, startY;
@@ -638,7 +639,7 @@ function resizeCanvas() {
      }
   }
   
-  if (currentDrawnBoxes.length > 0) redrawBoxes();
+  if (currentDrawnBoxes.length > 0 || aiDrawnBoxes.length > 0) redrawBoxes();
 }
 
 window.addEventListener('resize', resizeCanvas);
@@ -711,6 +712,32 @@ function endDraw(e) {
 function redrawBoxes() {
   activeCtx.clearRect(0,0, activeCanvas.width, activeCanvas.height);
   
+  // ─── Draw AI Predicted Boxes ───
+  aiDrawnBoxes.forEach((box) => {
+    const x = box.nx * activeCanvas.width;
+    const y = box.ny * activeCanvas.height;
+    const w = box.nw * activeCanvas.width;
+    const h = box.nh * activeCanvas.height;
+
+    // Glowing border
+    activeCtx.strokeStyle = '#00b894';
+    activeCtx.fillStyle = 'rgba(0,184,148, 0.12)';
+    activeCtx.lineWidth = 3;
+    activeCtx.setLineDash([]);
+    activeCtx.strokeRect(x, y, w, h);
+    activeCtx.fillRect(x, y, w, h);
+    
+    // Tag background
+    activeCtx.fillStyle = '#00b894';
+    activeCtx.fillRect(x - 1.5, Math.max(0, y - 22), 40, 22);
+
+    // Number tag
+    activeCtx.fillStyle = '#ffffff';
+    activeCtx.font = 'bold 12px Inter, sans-serif';
+    activeCtx.fillText(`#${box.num}`, x + 5, Math.max(16, y - 6));
+  });
+
+  // ─── Draw User Manual Boxes ───
   currentDrawnBoxes.forEach((box, i) => {
     const [cx, cy, nw, nh] = box;
     const w = nw * activeCanvas.width;
@@ -728,7 +755,7 @@ function redrawBoxes() {
     // Number tag
     activeCtx.fillStyle = '#6c5ce7';
     activeCtx.font = 'bold 12px Inter, sans-serif';
-    activeCtx.fillText(`#${i+1}`, x + 5, y + 15);
+    activeCtx.fillText(`[${i+1}]`, x + 5, y + 15);
   });
 }
 
@@ -736,10 +763,8 @@ function clearDrawnBoxes(silent = false) {
   const hadBoxes = currentDrawnBoxes.length > 0;
   currentDrawnBoxes = [];
   
-  // Clear both
-  [canvasMain, canvasZoom].forEach(can => {
-    can.getContext('2d').clearRect(0,0, can.width, can.height);
-  });
+  // Just redraw so AI boxes remain but user boxes vanish
+  redrawBoxes();
 
   document.getElementById('btnClearBox').style.display = 'none';
   if (hadBoxes && !silent) {
@@ -885,6 +910,7 @@ function handleFileSelect(file) {
 
     document.getElementById('zoomHint').textContent = '🔍 Tap to View Image';
     document.getElementById('zoomHint').style.display = 'block';
+    aiDrawnBoxes = []; // Wipe previous AI predictions for the new image
     clearDrawnBoxes(true); // Silent for image select
     setTimeout(resizeCanvas, 100);
   };
@@ -962,6 +988,34 @@ function renderResults(data) {
   const total   = data.total_animals || 0;
   const animals = data.animals || {};
   const dets    = data.detections || [];
+
+  // Parse and draw AI Bounding Boxes
+  aiDrawnBoxes = [];
+  const img = document.getElementById('previewImg');
+  const MAX_IMG_DIM = 1280; // Matches backend configuration
+  let scale = 1.0;
+  if (Math.max(img.naturalHeight, img.naturalWidth) > MAX_IMG_DIM) {
+      scale = MAX_IMG_DIM / Math.max(img.naturalHeight, img.naturalWidth);
+  }
+  // The backend sizes the image to a max of 1280px maintaining aspect ratio
+  const backendW = img.naturalWidth * scale;
+  const backendH = img.naturalHeight * scale;
+
+  dets.forEach((d, i) => {
+     const nx = d.bbox[0] / backendW;
+     const ny = d.bbox[1] / backendH;
+     const nw = d.bbox[2] / backendW;
+     const nh = d.bbox[3] / backendH;
+     
+     aiDrawnBoxes.push({
+         nx: nx, ny: ny, nw: nw, nh: nh,
+         label: d.label,
+         conf: d.confidence,
+         num: i + 1
+     });
+  });
+  
+  redrawBoxes(); // Paint the AI boxes immediately!
 
   // Total count
   document.getElementById('rTotal').textContent = total;
