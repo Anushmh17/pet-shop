@@ -1,6 +1,7 @@
 names:
-  0: dog
-  1: fish
+  0: bird
+  1: dog
+  2: fish
 path: C:\xampp\htdocs\Webbuilders Projects\petshop\ai-counter\auto_dataset
 train: images
 val: images
