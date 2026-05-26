@@ -99,6 +99,14 @@ switch ($action) {
     case 'saveCustomerSupplier':
         try {
             $d = $input;
+            $petId = (int)($d['pet_id'] ?? 0);
+            if (!$petId) respondError('Missing pet ID for customer supplier record.');
+
+            $nic = trim($d['nic'] ?? '');
+            if ($nic !== '' && !preg_match('/^[0-9]{9}[vV]$/', $nic) && !preg_match('/^[0-9]{12}$/', $nic)) {
+                respondError('Invalid NIC format. Old NIC must be 9 digits followed by V, new NIC must be 12 digits.');
+            }
+
             $sql = "INSERT INTO customer_suppliers (pet_id, full_name, nic, nic_photo, address, cost_paid, description, supplier_uid, payment_status, due_date, payment_note)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
@@ -108,9 +116,9 @@ switch ($action) {
                         due_date=VALUES(due_date), payment_note=VALUES(payment_note)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
-                (int)$d['pet_id'],
+                $petId,
                 $d['full_name'] ?? '',
-                $d['nic']       ?? '',
+                $nic,
                 $d['nic_photo'] ?? null,
                 $d['address']   ?? '',
                 (float)($d['cost_paid'] ?? 0),

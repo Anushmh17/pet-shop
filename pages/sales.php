@@ -161,7 +161,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
-    setQuickRange('today');
+   // Default to this month so the revenue trend shows more dates on load
+   setQuickRange('thisMonth');
 });
 
 function setQuickRange(mode) {
@@ -232,6 +233,8 @@ async function applyFilter() {
     const fromVal = document.getElementById('dateFrom').value;
     const toVal   = document.getElementById('dateTo').value;
     const sales = await getFilteredSales();
+  // Debug: log counts so we can verify front-end received data
+  console.log('applyFilter -> sales count:', sales.length, 'from:', fromVal, 'to:', toVal, 'totalRevenue:', sales.reduce((s,x)=>s+(x.total||0),0));
     renderHistory(sales);
     updateStats(sales);
     renderRevenueChart(sales, fromVal, toVal);
@@ -350,14 +353,9 @@ function renderRevenueChart(sales, from, to) {
     const endDate = new Date(to);
     const diffDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
 
-    let bucketSize = 1;
-    if (diffDays <= 7) {
-        bucketSize = 1; // Daily
-    } else if (diffDays <= 31) {
-        bucketSize = Math.ceil(diffDays / 6); // ~5-day buckets to fit 6 bars
-    } else {
-        bucketSize = 7; // Weekly
-    }
+    // Aim for up to ~12 bars on the chart for readability
+    const desiredBars = 12;
+    let bucketSize = Math.max(1, Math.ceil(diffDays / desiredBars));
 
     let buckets = [];
     for (let i = 0; i < diffDays; i += bucketSize) {

@@ -166,7 +166,8 @@
 
       <div class="form-group">
         <label class="form-label" for="csNIC">NIC Number *</label>
-        <input type="text" id="csNIC" class="form-control" placeholder="e.g. 199512345678" autocomplete="off" oninput="checkFormValidity()" />
+        <input type="text" id="csNIC" class="form-control" placeholder="e.g. 931234567V or 199512345678" autocomplete="off" maxlength="12" oninput="normalizeNICInput()" />
+        <div class="form-help" style="font-size:.78rem; color:var(--clr-muted); margin-top:4px;">Old NIC: 9 digits + V. New NIC: 12 digits only.</div>
       </div>
 
       <div class="form-group">
@@ -364,8 +365,7 @@ function checkFormValidity() {
         const csNIC = document.getElementById('csNIC').value.trim();
         const csPaid = parseFloat(document.getElementById('csCostPaid').value) || 0;
         
-        // NIC validation: 10 or 12 digits
-        const nicValid = /^[0-9]{9}[vVxX]$|^[0-9]{12}$/.test(csNIC);
+        const nicValid = isValidSriLankaNIC(csNIC);
         
         if (csName === '' || !nicValid || csPaid <= 0) isValid = false;
         
@@ -416,6 +416,29 @@ function handleNICPhoto(e) {
   reader.readAsDataURL(file);
 }
 
+function normalizeNICInput() {
+  const input = document.getElementById('csNIC');
+  let value = input.value.toUpperCase().replace(/[^0-9V]/g, '');
+
+  // Move any V to the end and keep only one V for old NIC format.
+  const hasV = value.includes('V');
+  value = value.replace(/V/g, '');
+  if (hasV) value = value.slice(0, 11) + 'V';
+
+  if (value.length > 12) {
+    value = value.slice(0, 12);
+  }
+
+  input.value = value;
+  checkFormValidity();
+}
+
+function isValidSriLankaNIC(nic) {
+  if (!nic) return false;
+  const value = nic.trim().toUpperCase();
+  return /^[0-9]{9}V$/.test(value) || /^[0-9]{12}$/.test(value);
+}
+
 async function savePet() {
   const btn = document.getElementById('submitPetBtn');
   
@@ -445,8 +468,10 @@ async function savePet() {
 
       // Customer supplier validation
       if (source === 'Customer Supplied') {
+        const csNIC = document.getElementById('csNIC').value.trim();
         if (!document.getElementById('csName').value.trim()) { showToast('Enter customer name'); return; }
-        if (!document.getElementById('csNIC').value.trim())  { showToast('Enter customer NIC');  return; }
+        if (!csNIC)  { showToast('Enter customer NIC');  return; }
+        if (!isValidSriLankaNIC(csNIC)) { showToast('Invalid NIC format. Old NIC must end with V, new NIC must be 12 digits.'); return; }
         const csCost = parseFloat(document.getElementById('csCostPaid').value);
         if (!csCost || csCost <= 0) { showToast('Enter amount paid to customer'); return; }
       }
